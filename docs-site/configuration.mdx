@@ -1,0 +1,214 @@
+---
+title: "Configuration Reference"
+description: "Environment variables, server settings, CORS, and encryption key management"
+icon: "gear"
+---
+
+## Environment Variables (`.env`)
+
+Create a `.env` file in the same directory as `docker-compose.yml` and set the required values before starting the application.
+
+### Security (Required)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_ENCRYPTION_KEY` | auto-generated | Encryption key for passwords, tokens, and secrets in the database. Set explicitly to persist encrypted data across container restarts. |
+| `STUDIO_JWT_SECRET` | auto-generated | JWT secret for admin session tokens. Set explicitly to persist sessions across restarts. |
+| `REDIS_PASSWORD` | — (required) | Redis authentication password. Compose will fail if not set. |
+| `STUDIO_AGENT_SERVICE_TOKEN` | — (required) | Shared token for backend-to-agent-mcp internal communication. Must match on both containers. |
+
+### Public Ports
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_PORT` | `3000` | Frontend nginx port (public) |
+| `STUDIO_SSL_PORT` | `443` | Frontend HTTPS port (public, when SSL enabled) |
+
+### Database
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_DATABASE_URL` | `sqlite+aiosqlite:///./data/studio.db` | Connection string for the internal metadata database |
+| `STUDIO_GENERATED_DIR` | `./generated` | Directory for generated server code (shared volume mount point) |
+
+### FastMCP
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_FASTMCP_HOST` | `mcp` | Docker service name for the FastMCP container |
+| `STUDIO_FASTMCP_PORT` | `8080` | FastMCP internal port |
+
+### Agent MCP
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_AGENT_RATE_LIMIT` | `120` | Max agent API requests per minute per token |
+
+### Redis
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_REDIS_URL` | auto | Backend Redis connection URL (auto-constructed from `REDIS_PASSWORD`). Override for external Redis. |
+| `REDIS_URL` | auto | MCP container Redis connection URL (auto-constructed from `REDIS_PASSWORD`). |
+
+### Logging
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_LOG_LEVEL` | `INFO` | Backend log level: `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+
+### GeoIP (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_GEOIP_SOURCE` | `generic` | GeoIP database source: `generic` (P3TERX community mirror) or `maxmind` (official MaxMind API) |
+| `STUDIO_MAXMIND_LICENSE_KEY` | — | MaxMind license key for API downloads. Required when `STUDIO_GEOIP_SOURCE=maxmind`. Also enables runtime DB updates from the Settings UI. |
+
+The GeoLite2-Country MMDB is downloaded at Docker build time and works air-gapped after build. When a MaxMind license key is configured, you can update the database at runtime via the Settings UI.
+
+<Tip>
+  Get a free MaxMind license key at [maxmind.com/en/geolite2/signup](https://www.maxmind.com/en/geolite2/signup).
+</Tip>
+
+### Prompt Injection Protection
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_PROMPT_GUARD_ENABLED` | `true` | Enable prompt injection scanning on all entity writes and imports |
+
+See [Security > Prompt Injection Protection](/security#prompt-injection-protection) for details on what is scanned and how blocked attempts are reported.
+
+### SSL/TLS (Optional)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_SSL_STAGING` | `false` | Use Let's Encrypt staging environment for testing (avoids rate limits) |
+| `STUDIO_SSL_DOMAIN` | — | Domain name for SSL certificate |
+| `STUDIO_SSL_EMAIL` | — | Contact email for Let's Encrypt notifications |
+
+### Generate Secrets
+
+```bash
+# Encryption key
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+# JWT secret
+openssl rand -hex 32
+
+# Redis password
+openssl rand -base64 32
+
+# Agent service token
+openssl rand -hex 32
+```
+
+---
+
+## Server Settings (UI)
+
+Server settings are managed through the Settings tab on the Server page (`/server` > Settings tab).
+
+### General
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Server Name | `SMKRV Analytics MCP` | Display name for the MCP server |
+| Transport | `http` | Transport protocol: `http`, `sse`, `stdio` |
+| Host | `0.0.0.0` | Bind address |
+| Port | `8080` | MCP server port |
+| Log Level | `INFO` | FastMCP log level |
+| OpenTelemetry | disabled | Enable OTEL tracing |
+
+### Security
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Auth Type | `none` | Authentication: `none`, `bearer`, `oauth_credentials`, or `oauth_introspection` |
+| Bearer Tokens | — | Named bearer tokens when auth_type is `bearer`. Create and manage from the MCP Access page. Each token supports optional idle timeout. Stored as bcrypt hashes. |
+| OAuth2 Clients | — | Client ID/secret pairs when auth_type is `oauth_credentials` (max 10, encrypted at rest) |
+| Token TTL | `3600` | Access token lifetime in seconds for `oauth_credentials` mode (60–604800) |
+| Introspection URL | — | RFC 7662 endpoint URL when auth_type is `oauth_introspection` |
+| Introspection Client ID | — | Client ID for authenticating with the introspection endpoint |
+| Introspection Client Secret | — | Client secret for the introspection endpoint (encrypted at rest) |
+| Introspection Cache TTL | `60` | Cache duration in seconds for introspection results (0–3600) |
+| CORS Origins | `localhost:3000, localhost:5173` | Allowed CORS origins (array) |
+
+### SSL / TLS
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| SSL Enabled | `false` | Enable HTTPS with Let's Encrypt |
+| UI Domain | — | Domain for the web UI |
+| MCP Domain | — | Domain for MCP endpoint (same or separate from UI) |
+| MCP Proxy | `false` | Proxy MCP through nginx |
+| ACME Email | — | Email for Let's Encrypt notifications |
+| Challenge Type | `http-01` | ACME challenge: `http-01` or `dns-01` |
+| DNS Provider | — | DNS provider for DNS-01: `cloudflare` or `route53` |
+| DNS Credentials | — | Provider API credentials (encrypted at rest) |
+| Auto-Renew | `true` | Automatically renew certificates |
+
+### Global Variables
+
+Server-level key-value pairs accessible in all tool transform templates as `{{ vars.key_name }}`.
+
+| Setting | Description |
+|---------|-------------|
+| Variable Name | Alphanumeric identifier (letters, digits, underscores) |
+| Value | String, integer, float, or boolean |
+| Type | Inferred from value or set explicitly |
+
+Manage via the **Global Variables** card on the Settings tab, or via the API: `PATCH /api/v1/server/config` with `global_variables`.
+
+<Note>
+  Maximum 100 global variables. Names must match `^[a-zA-Z_]\w{0,63}$`.
+</Note>
+
+---
+
+## CORS Configuration
+
+Default CORS origins allow only `localhost:3000` and `localhost:5173`. For production, update to your actual domain:
+
+```json
+["https://studio.example.com"]
+```
+
+<Warning>
+  Never use `["*"]` in production — it allows any origin to make API requests.
+</Warning>
+
+Update via the Settings UI or the API: `PATCH /api/v1/server/config` with `cors_origins`.
+
+---
+
+## Encryption Key Management
+
+The `STUDIO_ENCRYPTION_KEY` is a symmetric encryption key used to encrypt:
+- Database connection passwords
+- Bearer authentication tokens
+- DNS API credentials for SSL
+- Sensitive `extra_params` fields (e.g., BigQuery `credentials_json`)
+- TOTP 2FA secrets
+- OAuth2 client credentials (MCP auth)
+- OAuth2 introspection client secret (MCP auth)
+
+If not set, a key is auto-generated on first run. **Set it explicitly** in `.env` to persist encrypted data across container restarts.
+
+### Key Rotation
+
+SMKRV MCP Studio supports encryption key rotation. To rotate:
+
+1. Generate a new key: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`
+2. Set `STUDIO_ENCRYPTION_KEY` to `new_key,old_key` (comma-separated, new key first)
+3. Restart the backend — new data is encrypted with the new key, old data can still be decrypted with the old key
+4. After all data has been re-encrypted (on next update of each entity), remove the old key
+
+---
+
+## See Also
+
+- [Security](/security) — encryption architecture, authentication, and hardening checklist
+- [SSL/HTTPS Setup](/user-guide/ssl-https) — configure automatic SSL certificates
+- [Agent MCP](/api-reference/agent-mcp) — agent service token and rate limiting
+- [Queue Management](/user-guide/queue-management) — Redis queue configuration
+- [Troubleshooting](/troubleshooting) — common configuration issues and solutions

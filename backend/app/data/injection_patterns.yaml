@@ -1,0 +1,739 @@
+# Prompt Injection Detection Patterns
+# ====================================
+# Multi-language regex pattern database for detecting prompt injection attacks.
+#
+# Sources (merged & adapted):
+#   - stlas/PromptShield (MIT) — structural patterns, EN+DE+ES+FR
+#   - nooesc/prompt-shield (MIT) — obfuscation detection, ported from lasso-security/claude-hooks
+#   - arithmosquillsworth/prompt-guard — multilingual EN+KO+JA+ZH
+#   - Custom patterns for Russian language
+#
+# Severity levels:
+#   LOW    — suspicious but often legitimate (log only)
+#   MEDIUM — likely malicious, but could be false positive (warn)
+#   HIGH   — strong indicator of prompt injection (block writes)
+#   CRITICAL — definitive attack pattern (block writes + skip codegen)
+
+version: "1.0"
+
+categories:
+
+  # ===========================================================================
+  # 1. INSTRUCTION OVERRIDE
+  # ===========================================================================
+  instruction_override:
+    description: "Attempts to override, ignore, or reset previous instructions"
+    patterns:
+      # --- English ---
+      - id: io_en_001
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(ignore|disregard|forget|override|bypass)\b.{0,30}\b(all\s+)?(previous|prior|above|earlier|existing|original|initial)\b.{0,20}\b(instructions?|rules?|guidelines?|directives?|prompts?|constraints?)\b'
+        description: "Ignore previous instructions"
+      - id: io_en_002
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(do\s+not|don.?t|never)\s+(follow|obey|listen\s+to|adhere\s+to|comply\s+with).{0,20}\b(instructions?|rules?|guidelines?|prompts?)\b'
+        description: "Do not follow instructions"
+      - id: io_en_003
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(new\s+instructions?|updated?\s+instructions?|revised?\s+instructions?|replacement\s+instructions?)\s*[:.]'
+        description: "Replacement instructions declaration"
+      - id: io_en_004
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(from\s+now\s+on|starting\s+now|henceforth|going\s+forward)\b.{0,30}\b(you\s+will|you\s+must|you\s+should|your\s+instructions?)\b'
+        description: "From now on directive"
+      - id: io_en_005
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(reset|clear|wipe|erase|delete)\b.{0,20}\b(your\s+)?(memory|context|history|instructions?|conversation|chat)\b'
+        description: "Reset context/memory"
+      - id: io_en_006
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(stop\s+being|quit\s+being|cease\s+being)\b.{0,20}\b(an?\s+)?(assistant|AI|bot|helper|chatbot)\b'
+        description: "Stop being an AI"
+      - id: io_en_007
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\boverride\s+(all\s+)?(safety|security|content|ethical)\s+(filters?|measures?|protocols?|restrictions?|guidelines?)\b'
+        description: "Override safety filters"
+      - id: io_en_008
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(discard|abandon|throw\s+away|set\s+aside)\b.{0,20}\b(your\s+)?(rules?|boundaries|limits?|restrictions?)\b'
+        description: "Discard rules"
+
+      # --- Russian ---
+      - id: io_ru_001
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(игнорируй|забудь|проигнорируй|отбрось|отмени|пропусти).{0,30}(предыдущ|прошл|прежн|все|данн).{0,20}(инструкци|правил|указани|команд|ограничени)'
+        description: "Игнорируй предыдущие инструкции"
+      - id: io_ru_002
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(не\s+обращай\s+вниман|не\s+следуй|не\s+выполняй|не\s+слушай).{0,20}(инструкци|правил|указани|ограничени)'
+        description: "Не следуй инструкциям"
+      - id: io_ru_003
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(начни\s+с\s+чистого\s+листа|начни\s+заново|сбрось\s+настройки|обнули\s+контекст|очисти\s+память)'
+        description: "Сброс контекста"
+      - id: io_ru_004
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(новые\s+инструкции|обновлённые\s+правила|замена\s+инструкций)\s*[:.]'
+        description: "Новые инструкции"
+      - id: io_ru_005
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(отныне|с\s+этого\s+момента|начиная\s+с\s+сейчас|впредь).{0,30}(ты\s+должен|ты\s+будешь|тебе\s+следует|твои\s+инструкци)'
+        description: "С этого момента (директива)"
+
+      # --- German ---
+      - id: io_de_001
+        severity: HIGH
+        lang: de
+        pattern: '(?i)(ignoriere|vergiss|missachte|überspringe).{0,30}(vorherige|bisherige|alle|obige).{0,20}(Anweisungen?|Regeln?|Instruktionen?|Richtlinien?)'
+        description: "Ignoriere vorherige Anweisungen"
+      - id: io_de_002
+        severity: HIGH
+        lang: de
+        pattern: '(?i)(ab\s+jetzt|ab\s+sofort|von\s+nun\s+an).{0,30}(du\s+wirst|du\s+musst|du\s+sollst)'
+        description: "Ab jetzt (Direktive)"
+
+      # --- French ---
+      - id: io_fr_001
+        severity: HIGH
+        lang: fr
+        pattern: '(?i)(ignore[zr]?|oublie[zr]?|ne\s+sui[stv].{0,5}pas).{0,30}(précédente?s?|antérieure?s?|toute?s?\s+le?s?).{0,20}(instructions?|règles?|consignes?|directives?)'
+        description: "Ignorer les instructions précédentes"
+      - id: io_fr_002
+        severity: HIGH
+        lang: fr
+        pattern: '(?i)(à\s+partir\s+de\s+maintenant|désormais|dorénavant).{0,30}(tu\s+dois|tu\s+vas|vous\s+devez)'
+        description: "À partir de maintenant (directive)"
+
+      # --- Spanish ---
+      - id: io_es_001
+        severity: HIGH
+        lang: es
+        pattern: '(?i)(ignora|olvida|desatiende|omite).{0,30}(previas?|anteriores?|todas?\s+las?).{0,20}(instrucciones?|reglas?|directivas?|normas?)'
+        description: "Ignora las instrucciones previas"
+      - id: io_es_002
+        severity: HIGH
+        lang: es
+        pattern: '(?i)(a\s+partir\s+de\s+ahora|desde\s+ahora|de\s+ahora\s+en\s+adelante).{0,30}(debes|deberás|tienes\s+que|vas\s+a)'
+        description: "A partir de ahora (directiva)"
+
+      # --- Chinese ---
+      - id: io_zh_001
+        severity: HIGH
+        lang: zh
+        pattern: '(忽略|无视|忘记|丢弃|抛弃|放弃).{0,20}(之前|以前|上面|先前|原来|既有|全部).{0,10}(指令|指示|规则|说明|命令|限制|约束)'
+        description: "忽略之前的指令"
+      - id: io_zh_002
+        severity: HIGH
+        lang: zh
+        pattern: '(从现在开始|从此刻起|从今以后|即刻起).{0,20}(你必须|你应该|你需要|你要|你将)'
+        description: "从现在开始（指令）"
+      - id: io_zh_003
+        severity: MEDIUM
+        lang: zh
+        pattern: '(重置|清除|清空|删除|抹掉).{0,10}(记忆|上下文|对话|历史|内存)'
+        description: "重置记忆/上下文"
+
+      # --- Japanese ---
+      - id: io_ja_001
+        severity: HIGH
+        lang: ja
+        pattern: '(無視|忘れ|捨て|破棄|取り消).{0,10}(以前|前|上|先|全て|すべて).{0,10}(指示|指令|ルール|規則|命令|制約)'
+        description: "以前の指示を無視"
+      - id: io_ja_002
+        severity: HIGH
+        lang: ja
+        pattern: '(今から|これから|ここから|以降).{0,20}(あなたは|お前は|君は).{0,10}(しなければ|する必要|すべき)'
+        description: "今から（指令）"
+
+      # --- Korean ---
+      - id: io_ko_001
+        severity: HIGH
+        lang: ko
+        pattern: '(무시|잊어|버려|폐기|취소).{0,15}(이전|위|앞|기존|모든).{0,10}(지시|지침|규칙|명령|제약|제한)'
+        description: "이전 지시를 무시"
+      - id: io_ko_002
+        severity: HIGH
+        lang: ko
+        pattern: '(지금부터|이제부터|앞으로).{0,20}(너는|당신은|넌).{0,10}(해야|따라야|해라)'
+        description: "지금부터 (지시)"
+
+  # ===========================================================================
+  # 2. ROLE MANIPULATION
+  # ===========================================================================
+  role_manipulation:
+    description: "Attempts to make the LLM assume a different identity or role"
+    patterns:
+      # --- English ---
+      - id: rm_en_001
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(you\s+are\s+now|you\s+are\s+no\s+longer|you\s+have\s+become|you\s+must\s+act\s+as)\b.{0,40}\b(DAN|evil|uncensored|unfiltered|jailbroken|unrestricted|god\s*mode)\b'
+        description: "DAN/jailbreak role assignment"
+      - id: rm_en_002
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(pretend|imagine|suppose|assume|act\s+as\s+if|behave\s+as\s+if|roleplay\s+as)\b.{0,30}\b(you\s+are|you.?re|being)\b'
+        description: "Pretend you are..."
+      - id: rm_en_003
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(enter|switch\s+to|activate|enable|turn\s+on)\b.{0,20}\b(developer|debug|admin|root|sudo|god|unrestricted|jailbreak|DAN)\s*(mode|access|privileges?)\b'
+        description: "Activate special mode"
+      - id: rm_en_004
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\byou\s+are\s+(not|no\s+longer)\s+(an?\s+)?(AI|bot|assistant|chatbot|language\s+model)\b'
+        description: "You are not an AI"
+      - id: rm_en_005
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(simulate|emulate|mimic|impersonate)\b.{0,20}\b(an?\s+)?(admin|administrator|developer|root|superuser|system)\b'
+        description: "Simulate admin/developer"
+
+      # --- Russian ---
+      - id: rm_ru_001
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(ты\s+теперь|ты\s+сейчас|представь\s+(что\s+)?ты|притворись|веди\s+себя\s+как|действуй\s+как|ты\s+(?:не\s+)?являешься)'
+        description: "Ты теперь / притворись"
+      - id: rm_ru_002
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(войди\s+в\s+роль|переключись\s+в\s+режим|активируй\s+режим|включи\s+режим).{0,20}(разработчик|админ|суперпользовател|отладк|DAN|бог|неограниченн)'
+        description: "Войди в режим (разработчика/админа)"
+      - id: rm_ru_003
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(ты\s+(?:больше\s+)?не\s+(?:ИИ|бот|ассистент|помощник|искусственный\s+интеллект))'
+        description: "Ты больше не ИИ"
+      - id: rm_ru_004
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(изобрази|сыграй\s+роль|перевоплотись\s+в|стань).{0,20}(админ|разработчик|хакер|систем)'
+        description: "Сыграй роль (админа)"
+
+      # --- Chinese ---
+      - id: rm_zh_001
+        severity: HIGH
+        lang: zh
+        pattern: '(你现在是|你不再是|你已经变成|你必须扮演|你就是|假装你是).{0,30}(管理员|黑客|开发者|超级用户|上帝模式|DAN)'
+        description: "你现在是（角色操控）"
+      - id: rm_zh_002
+        severity: MEDIUM
+        lang: zh
+        pattern: '(扮演|模拟|模仿|假装|充当|冒充).{0,20}(管理员|开发者|系统|黑客|超级用户)'
+        description: "扮演管理员"
+
+      # --- Japanese ---
+      - id: rm_ja_001
+        severity: HIGH
+        lang: ja
+        pattern: '(あなたは今|今からあなたは|もうAIではない|AIではなくなった).{0,20}(管理者|ハッカー|開発者|スーパーユーザー|DAN)'
+        description: "あなたは今（役割操作）"
+
+      # --- Korean ---
+      - id: rm_ko_001
+        severity: HIGH
+        lang: ko
+        pattern: '(너는\s*이제|너는\s*더\s*이상|지금부터\s*너는).{0,20}(관리자|해커|개발자|DAN|슈퍼유저)'
+        description: "너는 이제 (역할 조작)"
+
+  # ===========================================================================
+  # 3. SYSTEM PROMPT EXTRACTION
+  # ===========================================================================
+  system_prompt_extraction:
+    description: "Attempts to extract system prompt, internal instructions, or configuration"
+    patterns:
+      # --- English ---
+      - id: spe_en_001
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(show|display|reveal|print|output|tell\s+me|give\s+me|share|repeat|recite|echo|dump)\b.{0,30}\b(your\s+)?(system\s+prompt|system\s+message|initial\s+prompt|original\s+instructions?|hidden\s+instructions?|internal\s+instructions?)\b'
+        description: "Show system prompt"
+      - id: spe_en_002
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(what\s+are|what\s+is|what.?s)\b.{0,20}\b(your\s+)?(system\s+prompt|initial\s+instructions?|hidden\s+prompt|secret\s+instructions?|original\s+prompt)\b'
+        description: "What is your system prompt?"
+      - id: spe_en_003
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(repeat|recite|reproduce|copy|quote|echo)\b.{0,20}\b(everything|all|verbatim|word\s+for\s+word)\b.{0,20}\b(above|before|you\s+were\s+told|you\s+received)\b'
+        description: "Repeat everything above"
+      - id: spe_en_004
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(how\s+were\s+you|how\s+are\s+you)\s+(configured|programmed|instructed|set\s+up|initialized|trained)\b'
+        description: "How were you configured?"
+      - id: spe_en_005
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\bprint\s*\(.{0,30}(system|prompt|instructions?|config)\b'
+        description: "print(system_prompt) code injection"
+
+      # --- Russian ---
+      - id: spe_ru_001
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(покажи|выведи|скопируй|повтори|напиши|расскажи|раскрой|продемонстрируй).{0,30}(системн|инструкц|промпт|настройк|конфигурац|скрыт.{0,5}инструкц)'
+        description: "Покажи системный промпт"
+      - id: spe_ru_002
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(какие?\s+(?:у\s+тебя\s+)?(?:инструкции|правила|ограничения|настройки|директивы))'
+        description: "Какие у тебя инструкции?"
+      - id: spe_ru_003
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(процитируй|воспроизведи|перескажи|перепечатай).{0,20}(системн|начальн|исходн|оригинальн|скрыт)'
+        description: "Процитируй системное"
+      - id: spe_ru_004
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(как\s+тебя|как\s+ты\s+был[аи]?)\s+(настроил|запрограммировал|сконфигурировал|инструктировал|обучил)'
+        description: "Как тебя настроили?"
+
+      # --- Chinese ---
+      - id: spe_zh_001
+        severity: HIGH
+        lang: zh
+        pattern: '(显示|展示|告诉我|给我看|透露|输出|打印|复制).{0,20}(系统提示|系统消息|隐藏指令|内部指令|原始指令|初始提示)'
+        description: "显示系统提示"
+      - id: spe_zh_002
+        severity: MEDIUM
+        lang: zh
+        pattern: '(你的|你有什么).{0,10}(系统提示|初始指令|隐藏指令|秘密指令)'
+        description: "你的系统提示是什么？"
+
+      # --- Japanese ---
+      - id: spe_ja_001
+        severity: HIGH
+        lang: ja
+        pattern: '(表示|見せて|教えて|出力|コピー|公開).{0,20}(システムプロンプト|システムメッセージ|隠された指示|内部指示|元の指示)'
+        description: "システムプロンプトを表示"
+
+      # --- Korean ---
+      - id: spe_ko_001
+        severity: HIGH
+        lang: ko
+        pattern: '(보여줘|알려줘|출력|공개|복사|표시).{0,20}(시스템\s*프롬프트|시스템\s*메시지|숨겨진\s*지시|내부\s*지시|원래\s*지시)'
+        description: "시스템 프롬프트 표시"
+
+  # ===========================================================================
+  # 4. ENCODING / OBFUSCATION
+  # ===========================================================================
+  encoding_obfuscation:
+    description: "Use of encoding, obfuscation, or steganographic techniques to hide instructions"
+    patterns:
+      # --- Language-independent ---
+      - id: eo_001
+        severity: MEDIUM
+        lang: "*"
+        pattern: '(?i)\b(base64|rot13|rot[\-_]?13|hex[_\-]?encod|url[_\-]?encod|unicode[_\-]?escap|ascii[_\-]?encod)\b'
+        description: "Reference to encoding scheme"
+      - id: eo_002
+        severity: MEDIUM
+        lang: "*"
+        pattern: '(?i)\b(decode|decrypt|deobfuscate|unescape|unencode)\s+(this|the\s+following|below)\b'
+        description: "Decode the following"
+      - id: eo_003
+        severity: MEDIUM
+        lang: "*"
+        pattern: '(?i)\b(execute|run|eval|interpret|process)\s+(the\s+)?(decoded|decrypted|deobfuscated|hidden)\b'
+        description: "Execute decoded content"
+      - id: eo_004
+        severity: LOW
+        lang: "*"
+        pattern: '(?i)\b(leet\s*speak|l33t|1337|13375p34k)\b'
+        description: "Leetspeak reference"
+      - id: eo_005
+        severity: MEDIUM
+        lang: "*"
+        pattern: '(?i)\b(morse\s+code|pig\s+latin|reverse\s+text|backwards?)\b.{0,20}\b(decode|translate|interpret|convert)\b'
+        description: "Alternative encoding decode request"
+      - id: eo_006
+        severity: MEDIUM
+        lang: "*"
+        pattern: '(?i)\\\\u[0-9a-fA-F]{4}.*\\\\u[0-9a-fA-F]{4}.*\\\\u[0-9a-fA-F]{4}'
+        description: "Multiple Unicode escape sequences"
+      - id: eo_007
+        severity: MEDIUM
+        lang: "*"
+        pattern: '(?i)&#x?[0-9a-fA-F]+;.*&#x?[0-9a-fA-F]+;.*&#x?[0-9a-fA-F]+;'
+        description: "Multiple HTML entity encodings"
+      - id: eo_008
+        severity: LOW
+        lang: "*"
+        pattern: '(?i)%[0-9a-fA-F]{2}.*%[0-9a-fA-F]{2}.*%[0-9a-fA-F]{2}.*%[0-9a-fA-F]{2}'
+        description: "Multiple URL-encoded sequences"
+
+      # --- Russian ---
+      - id: eo_ru_001
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(декодируй|расшифруй|переведи\s+из|раскодируй).{0,20}(base64|hex|rot13|unicode|бинарн|шестнадцатеричн)'
+        description: "Декодируй из base64/hex"
+      - id: eo_ru_002
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(выполни|интерпретируй|обработай|запусти).{0,20}(закодированн|зашифрованн|скрыт|обфусцированн)'
+        description: "Выполни зашифрованное"
+
+  # ===========================================================================
+  # 5. UNICODE OBFUSCATION
+  # ===========================================================================
+  unicode_obfuscation:
+    description: "Invisible Unicode characters, RTL overrides, and homoglyph attacks"
+    patterns:
+      - id: uo_001
+        severity: HIGH
+        lang: "*"
+        pattern: '[\u200B\u200C\u200D\u200E\u200F]'
+        description: "Zero-width characters (ZWSP, ZWNJ, ZWJ, LRM, RLM)"
+      - id: uo_002
+        severity: HIGH
+        lang: "*"
+        pattern: '[\u202A\u202B\u202C\u202D\u202E]'
+        description: "Bidirectional override characters (LRE, RLE, PDF, LRO, RLO)"
+      - id: uo_003
+        severity: HIGH
+        lang: "*"
+        pattern: '[\u2060\u2061\u2062\u2063\u2064]'
+        description: "Invisible formatting characters (WJ, function application, etc.)"
+      - id: uo_004
+        severity: MEDIUM
+        lang: "*"
+        pattern: '[\uFEFF]'
+        description: "Byte order mark (BOM) in content"
+      - id: uo_005
+        severity: MEDIUM
+        lang: "*"
+        pattern: '[\u00AD]'
+        description: "Soft hyphen (invisible character)"
+      - id: uo_006
+        severity: MEDIUM
+        lang: "*"
+        pattern: '[\uFFF9\uFFFA\uFFFB]'
+        description: "Interlinear annotation characters"
+      - id: uo_007
+        severity: LOW
+        lang: "*"
+        pattern: '[\u2028\u2029]'
+        description: "Unicode line/paragraph separator"
+      - id: uo_008
+        severity: MEDIUM
+        lang: "*"
+        pattern: '[\u2066\u2067\u2068\u2069]'
+        description: "Unicode isolate characters (LRI, RLI, FSI, PDI)"
+      - id: uo_009
+        severity: HIGH
+        lang: "*"
+        pattern: '[\U000E0001\U000E0020-\U000E007F]'
+        description: "Tag characters (invisible metadata)"
+      - id: uo_010
+        severity: MEDIUM
+        lang: "*"
+        pattern: '[\u180E\u3164\uFFA0]'
+        description: "Mongolian vowel separator, Hangul filler (invisible)"
+
+  # ===========================================================================
+  # 6. DATA EXFILTRATION
+  # ===========================================================================
+  data_exfiltration:
+    description: "Attempts to extract API keys, credentials, secrets, or internal data"
+    patterns:
+      # --- English ---
+      - id: de_en_001
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(show|reveal|display|give\s+me|tell\s+me|output|extract|leak|exfiltrate|expose)\b.{0,30}\b(api\s*key|secret\s*key|access\s*key|password|credential|token|private\s*key|encryption\s*key)\b'
+        description: "Extract API keys/credentials"
+      - id: de_en_002
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(send|transmit|forward|post|upload|email|exfiltrate)\b.{0,30}\b(data|information|credentials?|secrets?|keys?|tokens?)\b.{0,20}\b(to|at|via)\b'
+        description: "Send data to external destination"
+      - id: de_en_003
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(what\s+is|what\s+are|list|enumerate|dump)\b.{0,20}\b(the\s+)?(database|db|connection|server)\s+(password|credential|secret|key|config)\b'
+        description: "What is the database password?"
+      - id: de_en_004
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(include|embed|append|add|insert)\b.{0,30}\b(credentials?|api\s*keys?|secrets?|tokens?|passwords?)\b.{0,20}\b(in|to|into)\s+(the\s+)?(response|output|result|reply)\b'
+        description: "Include credentials in response"
+      - id: de_en_005
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(curl|wget|fetch|http|https|request)\b.{0,40}\b(api[_\-]?key|token|secret|password|credential)\b'
+        description: "HTTP request with credentials"
+
+      # --- Russian ---
+      - id: de_ru_001
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(покажи|выведи|дай|раскрой|передай|скинь|слей).{0,30}(пароль|ключ|токен|секрет|credential|api.?key|приватн.{0,5}ключ)'
+        description: "Покажи пароль/ключ/токен"
+      - id: de_ru_002
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(какой|какие|расскажи|назови).{0,30}(пароль|ключ|доступ|учётн|креденшл|секрет)'
+        description: "Какой пароль?"
+      - id: de_ru_003
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(отправь|перешли|скопируй|вставь|передай).{0,20}(данные|информаци|пароль|ключ|токен|секрет).{0,20}(на|в|по|через)'
+        description: "Отправь данные куда-то"
+
+      # --- Chinese ---
+      - id: de_zh_001
+        severity: HIGH
+        lang: zh
+        pattern: '(显示|告诉我|给我|泄露|暴露|提取|输出).{0,20}(API密钥|密码|凭证|令牌|密钥|私钥|访问密钥)'
+        description: "显示API密钥/密码"
+      - id: de_zh_002
+        severity: HIGH
+        lang: zh
+        pattern: '(发送|传输|转发|上传|邮件发送).{0,20}(数据|信息|凭证|密钥|令牌|密码).{0,10}(到|给|至|向)'
+        description: "发送数据到外部"
+
+      # --- Japanese ---
+      - id: de_ja_001
+        severity: HIGH
+        lang: ja
+        pattern: '(表示|見せて|教えて|出力|漏洩|抽出).{0,20}(APIキー|パスワード|資格情報|トークン|秘密鍵|アクセスキー)'
+        description: "APIキー/パスワードを表示"
+
+      # --- Korean ---
+      - id: de_ko_001
+        severity: HIGH
+        lang: ko
+        pattern: '(보여줘|알려줘|출력|유출|노출|추출).{0,20}(API\s*키|비밀번호|자격증명|토큰|비밀키|액세스키)'
+        description: "API키/비밀번호 표시"
+
+  # ===========================================================================
+  # 7. CONTEXT MANIPULATION
+  # ===========================================================================
+  context_manipulation:
+    description: "Attempts to manipulate context, switch scope, or escape sandbox"
+    patterns:
+      # --- English ---
+      - id: cm_en_001
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(escape|break\s+out\s+of|exit|leave|bypass)\b.{0,20}\b(the\s+)?(sandbox|container|context|environment|restrictions?|boundaries|constraints)\b'
+        description: "Escape sandbox/context"
+      - id: cm_en_002
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(switch|change|move)\s+(to|into)\s+(a\s+)?(different|another|new)\s+(context|scope|environment|session|conversation|business)\b'
+        description: "Switch to different context"
+      - id: cm_en_003
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(access|read|query|retrieve|connect\s+to)\b.{0,20}\b(other|another|different)\b.{0,20}\b(database|server|system|account|tenant|customer|user)\b'
+        description: "Access another database/system"
+      - id: cm_en_004
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b(execute|run|eval|exec)\s*\(.{0,100}\b(import|os\.|sys\.|subprocess|__)\b'
+        description: "Code execution attempt"
+      - id: cm_en_005
+        severity: HIGH
+        lang: en
+        pattern: '(?i)\b__\w+__\b.{0,20}\b(subclass|class|import|getattr|builtins)\b'
+        description: "Python dunder attribute exploitation"
+
+      # --- Russian ---
+      - id: cm_ru_001
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(другой\s+(?:бизнес|контекст|проект|клиент|компани|сервер|базу?\s+данных))'
+        description: "Другой бизнес/контекст"
+      - id: cm_ru_002
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(переключи(?:сь)?\s+(?:на|в|к)\s+(?:другой|другую|другое|новый|новую|иной))'
+        description: "Переключись на другой"
+      - id: cm_ru_003
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(покинь|выйди\s+из|оставь|сбеги\s+из|обойди).{0,20}(контекст|роль|режим|песочниц|ограничени|рамк)'
+        description: "Выйди из песочницы"
+      - id: cm_ru_004
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(выполни|запусти|исполни)\s+(код|скрипт|команд|программ)'
+        description: "Выполни код/скрипт"
+
+      # --- Chinese ---
+      - id: cm_zh_001
+        severity: HIGH
+        lang: zh
+        pattern: '(逃脱|突破|脱离|绕过|跳出|离开).{0,10}(沙盒|沙箱|容器|上下文|环境|限制|约束|边界)'
+        description: "逃脱沙盒/环境"
+      - id: cm_zh_002
+        severity: MEDIUM
+        lang: zh
+        pattern: '(切换|更改|转到|访问).{0,10}(其他|另一个|不同的).{0,10}(数据库|服务器|系统|账户|租户)'
+        description: "切换到其他数据库/系统"
+
+  # ===========================================================================
+  # 8. LLM TAG INJECTION
+  # ===========================================================================
+  llm_tag_injection:
+    description: "Injection of raw LLM control tags, message delimiters, or role markers"
+    patterns:
+      - id: lti_001
+        severity: CRITICAL
+        lang: "*"
+        pattern: '<\|im_start\|>'
+        description: "ChatML start tag"
+      - id: lti_002
+        severity: CRITICAL
+        lang: "*"
+        pattern: '<\|im_end\|>'
+        description: "ChatML end tag"
+      - id: lti_003
+        severity: CRITICAL
+        lang: "*"
+        pattern: '<\|endoftext\|>'
+        description: "GPT end-of-text token"
+      - id: lti_004
+        severity: CRITICAL
+        lang: "*"
+        pattern: '(?i)\[INST\]|\[\/INST\]|<<SYS>>|<\/SYS>>'
+        description: "LLaMA/Mistral instruction tags"
+      - id: lti_005
+        severity: HIGH
+        lang: "*"
+        pattern: '(?i)<\|?(system|user|assistant|function|tool)\|?>'
+        description: "Message role tags"
+      - id: lti_006
+        severity: HIGH
+        lang: "*"
+        pattern: '(?i)###\s*(System|Human|Assistant|User|Instruction)\s*:'
+        description: "Markdown-style role markers"
+      - id: lti_007
+        severity: MEDIUM
+        lang: "*"
+        pattern: '(?i)\b(SYSTEM|ADMIN|ROOT|DEVELOPER)\s*:\s*\n'
+        description: "Authority role prefix on newline"
+      - id: lti_008
+        severity: HIGH
+        lang: "*"
+        pattern: '(?i)<\|begin_of_text\|>|<\|end_of_text\|>|<\|start_header_id\|>'
+        description: "LLaMA 3 special tokens"
+      - id: lti_009
+        severity: HIGH
+        lang: "*"
+        pattern: '<\|tool_call\|>|<\|python_tag\|>'
+        description: "Tool/code execution tags"
+
+      # --- Russian tag injection ---
+      - id: lti_ru_001
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(\[СИСТЕМА\]|\[SYSTEM\]|\[АДМИН\]|\[ADMIN\]|\[РАЗРАБОТЧИК\]).{0,50}(выполни|сделай|верни|ответь|покажи|дай)'
+        description: "[СИСТЕМА] директива"
+      - id: lti_ru_002
+        severity: HIGH
+        lang: ru
+        pattern: '(?i)(СИСТЕМА|АДМИНИСТРАТОР|РАЗРАБОТЧИК)\s*:\s*\n'
+        description: "СИСТЕМА: (маркер роли)"
+
+  # ===========================================================================
+  # 9. ADDITIONAL ATTACK PATTERNS
+  # ===========================================================================
+  social_engineering:
+    description: "Social engineering and emotional manipulation attempts"
+    patterns:
+      - id: se_en_001
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(I\s+am|this\s+is)\s+(an?\s+)?(admin|administrator|developer|engineer|owner|creator|Anthropic|OpenAI|Google)\b.{0,30}\b(authorize|grant|approve|allow|permit|give)\b'
+        description: "Fake authority claim"
+      - id: se_en_002
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(urgent|emergency|critical|life.?or.?death|someone\s+will\s+die|lives?\s+at\s+stake)\b.{0,40}\b(must|need|have\s+to|required)\b'
+        description: "Urgency/emergency pressure"
+      - id: se_en_003
+        severity: LOW
+        lang: en
+        pattern: '(?i)\b(for\s+)?(educational|research|academic|testing|security\s+research)\s+(purposes?|reasons?|use)\b.{0,30}\b(show|tell|reveal|demonstrate|explain\s+how\s+to)\b'
+        description: "Educational purpose excuse"
+      - id: se_en_004
+        severity: MEDIUM
+        lang: en
+        pattern: '(?i)\b(the\s+user\s+has\s+(already\s+)?(authorized|approved|consented|agreed)|pre.?authorized|user\s+gave\s+permission)\b'
+        description: "Fake pre-authorization claim"
+
+      # --- Russian ---
+      - id: se_ru_001
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(я\s+(?:являюсь|есть)\s+(?:админ|разработчик|создатель|владелец|инженер)).{0,30}(разреш|разблокируй|предоставь|дай\s+доступ)'
+        description: "Я являюсь админом (фальшивый авторитет)"
+      - id: se_ru_002
+        severity: MEDIUM
+        lang: ru
+        pattern: '(?i)(срочно|экстренно|критично|вопрос\s+жизни\s+и\s+смерти|чрезвычайная\s+ситуация).{0,30}(необходимо|нужно|обязан|срочно|немедленно)'
+        description: "Срочность/давление"
+
+  # ===========================================================================
+  # HOMOGLYPH MAP (for normalization before scanning)
+  # ===========================================================================
+  # Cyrillic characters that look like Latin
+  homoglyphs:
+    "\u0410": "A"    # А → A
+    "\u0412": "B"    # В → B
+    "\u0421": "C"    # С → C
+    "\u0415": "E"    # Е → E
+    "\u041D": "H"    # Н → H
+    "\u041A": "K"    # К → K
+    "\u041C": "M"    # М → M
+    "\u041E": "O"    # О → O
+    "\u0420": "P"    # Р → P
+    "\u0422": "T"    # Т → T
+    "\u0425": "X"    # Х → X
+    "\u0430": "a"    # а → a
+    "\u0435": "e"    # е → e
+    "\u043E": "o"    # о → o
+    "\u0440": "p"    # р → p
+    "\u0441": "c"    # с → c
+    "\u0443": "y"    # у → y
+    "\u0445": "x"    # х → x
+    # Greek characters
+    "\u0391": "A"    # Α → A
+    "\u0392": "B"    # Β → B
+    "\u0395": "E"    # Ε → E
+    "\u0397": "H"    # Η → H
+    "\u0399": "I"    # Ι → I
+    "\u039A": "K"    # Κ → K
+    "\u039C": "M"    # Μ → M
+    "\u039D": "N"    # Ν → N
+    "\u039F": "O"    # Ο → O
+    "\u03A1": "P"    # Ρ → P
+    "\u03A4": "T"    # Τ → T
+    "\u03A7": "X"    # Χ → X
+    "\u03B1": "a"    # α → a
+    "\u03BF": "o"    # ο → o
+    # Fullwidth characters
+    "\uFF21": "A"    # Ａ → A
+    "\uFF22": "B"    # Ｂ → B
+    "\uFF23": "C"    # Ｃ → C
