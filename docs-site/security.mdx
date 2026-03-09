@@ -1,0 +1,275 @@
+---
+title: "Security"
+description: "Security architecture, encryption, authentication, and hardening"
+icon: "shield-halved"
+---
+
+## Overview
+
+SMKRV MCP Studio implements multiple layers of security. This document covers the security architecture, configuration, and best practices.
+
+## Network Architecture
+
+### Port Exposure
+
+Only the frontend nginx container exposes ports to the host network:
+
+| Container | Exposed Ports | Network |
+|-----------|--------------|---------|
+| **frontend** | 3000, 443 | Host + frontend-net |
+| **backend** | 8000 | backend-net only |
+| **mcp** | 8080 | backend-net only |
+| **agent-mcp** | 8090 | backend-net only |
+| **redis** | 6379 | backend-net only |
+
+Backend, MCP, Agent MCP, and Redis containers are not accessible from outside the Docker network. All external traffic routes through nginx.
+
+### Docker Network Isolation
+
+| Network | Containers | Purpose |
+|---------|-----------|---------|
+| `frontend-net` | frontend, backend | Nginx-to-backend API proxy |
+| `backend-net` | backend, mcp, agent-mcp, redis | Internal services communication |
+
+The frontend container cannot directly reach mcp, agent-mcp, or redis. The MCP and agent-mcp containers cannot reach the internet.
+
+## Encryption at Rest
+
+### What Is Encrypted
+
+Sensitive data is encrypted at rest using symmetric encryption:
+
+- Database connection passwords
+- API tokens (MCP bearer token)
+- DNS provider credentials (for SSL certificate issuance)
+- Sensitive `extra_params` fields (e.g., BigQuery `credentials_json`)
+- TOTP 2FA secrets
+- OAuth2 client credentials and introspection secrets
+
+The encryption key is set via the `STUDIO_ENCRYPTION_KEY` environment variable. See [Configuration](/configuration#encryption-key-management) for key management and rotation.
+
+### Sensitive Extra Params
+
+Cloud database connections store credentials in the `extra_params` JSON column. Sensitive fields are selectively encrypted:
+
+| DB Type | Field | Encrypted? |
+|---------|-------|-----------|
+| BigQuery | `credentials_json` | Yes |
+| BigQuery | `project_id`, `dataset` | No |
+| Snowflake | `account`, `warehouse`, `schema`, `role` | No |
+| Cassandra | `keyspace` | No |
+| Supabase | `project_ref` | No |
+
+Sensitive fields are:
+- Encrypted on create/update
+- Decrypted only for connection test, SQL preview, and code generation
+- Masked as `••••••` in all API responses and exports
+
+## Admin Authentication
+
+### Single-Admin Auth
+
+SMKRV MCP Studio uses a single-admin authentication model:
+
+1. **First-time onboarding** — when no admin exists, the app shows a setup screen to create the admin account
+2. **Login** — all access requires authentication via username/password
+3. **Session** — secure httpOnly cookie (SameSite=Lax, 24h expiry, Secure flag when SSL enabled)
+4. **Password storage** — securely hashed (never stored in plaintext)
+
+### Two-Factor Authentication (TOTP)
+
+Optional TOTP-based 2FA:
+- QR code for provisioning with any authenticator app (Google Authenticator, Authy, 1Password, etc.)
+- TOTP secret is encrypted in the database
+- 10 single-use recovery codes generated on setup
+- Separate rate limiter for 2FA attempts (5 per 15 min)
+
+### Rate Limiting
+
+Login attempts are rate-limited per IP address:
+- **5 failed attempts** within 15 minutes triggers a lockout
+- Lockout lasts until the 15-minute window expires
+- 2FA verification has a separate rate limiter
+
+### Password Reset
+
+Password reset is only available via Docker CLI:
+
+```bash
+docker compose exec backend python -m app.cli reset-password
+```
+
+There is no "forgot password" web flow — this is by design for security.
+
+## Agent MCP Authentication
+
+### Temporary Tokens
+
+Temporary access (15 minutes to 7 days) for AI agents. Tokens are securely hashed before storage.
+
+### OAuth2 Client Credentials
+
+For persistent agent access with automatic token refresh. Client secrets are securely hashed, sessions use sliding window expiry.
+
+### Service-to-Service Auth
+
+The agent-mcp container communicates with the backend using a shared service token (`STUDIO_AGENT_SERVICE_TOKEN`) that is only available over the internal Docker network. All backend API endpoints accept this token via the `X-Agent-Service-Token` header, allowing the agent-mcp to proxy tool calls on behalf of authenticated agents.
+
+## MCP Authentication
+
+The generated MCP server supports four authentication modes:
+
+| Mode | Description |
+|------|-------------|
+| **None** | No authentication — suitable for development |
+| **Bearer Token** | Named bearer tokens with optional idle timeout. Multiple tokens supported — manage from MCP Access page |
+| **OAuth2 Client Credentials** | Self-contained OAuth2 provider with `/oauth/token` endpoint |
+| **OAuth2 Introspection** | Validates tokens against an external RFC 7662 endpoint |
+
+Configure the authentication mode in Settings > Server > Security. Manage bearer tokens from the **MCP Access** page.
+
+## Prompt Injection Protection
+
+SMKRV MCP Studio includes built-in two-layer protection against prompt injection attacks targeting MCP tool descriptions, resource content, and prompt templates.
+
+### Two-Layer Architecture
+
+| Layer | Engine | Description |
+|-------|--------|-------------|
+| **L0 — Regex** | 250+ patterns, 8 languages | Fast pattern matching against known injection signatures (role impersonation, delimiter abuse, instruction override, etc.) |
+| **L1 — ML (DeBERTa)** | ONNX Runtime + DeBERTa v3 | Neural classifier for novel / obfuscated injections that bypass regex patterns |
+
+Both layers run independently and can be enabled or disabled separately. Each layer can target specific entity types (tools, prompts, resources).
+
+### How It Works
+
+All user-created content is scanned before it reaches the database. If a prompt injection pattern is detected with severity at or above the configured threshold, the write is blocked and the attempt is logged in the audit trail.
+
+Content is also scanned during import and code generation to prevent injection via bulk operations.
+
+### What Is Scanned
+
+| Entity | Fields Scanned |
+|--------|---------------|
+| **Tools** | Name, description, SQL query, transform template, parameter descriptions |
+| **Resources** | Name, description, SQL query, static content |
+| **Prompts** | Name, description, template |
+| **Server Config** | Global variable values |
+
+### GUI Configuration
+
+All guard settings are configurable from **Server → Security** in the admin panel:
+
+| Setting | Description |
+|---------|-------------|
+| **Master Toggle** | Enable / disable all prompt injection scanning |
+| **L0 Regex Engine** | Toggle regex scanning; choose which entity types to scan |
+| **L1 ML Engine** | Toggle ML scanning; choose which entity types to scan; adjust confidence threshold |
+| **Block Severity** | Minimum severity to block writes (LOW / MEDIUM / HIGH / CRITICAL) |
+| **Built-in Patterns** | Browse all 250+ patterns by category; disable individual patterns |
+| **Custom Patterns** | Add your own regex patterns with severity and category; patterns are validated before saving |
+| **Entity Scan** | Run a one-time scan of all existing tools, prompts, and resources to audit for injections |
+
+### Environment Variables
+
+Guard settings in the database take precedence. Environment variables serve as the initial defaults:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_PROMPT_GUARD_ENABLED` | `true` | Enable or disable prompt injection scanning |
+
+Set to `false` to disable scanning entirely (not recommended for production).
+
+### Dashboard Visibility
+
+Blocked injection attempts appear in:
+- **Dashboard** — "Injections Blocked" counter
+- **Change History** — filtered by "Injection Blocked" action, with detection details
+
+## Container Security
+
+All containers run as non-root users with the principle of least privilege:
+
+| Container | Hardening |
+|-----------|-----------|
+| **backend** | Non-root user |
+| **mcp** | Non-root, dropped capabilities, read-only filesystem, memory/CPU limits |
+| **agent-mcp** | Non-root, dropped capabilities, read-only filesystem, memory/CPU limits |
+| **redis** | Password-protected, persistent storage |
+
+### MCP Sandbox
+
+The MCP container runs generated code in a hardened environment with no Linux capabilities, immutable root filesystem, and resource limits.
+
+## Nginx Security Headers
+
+| Header | Value |
+|--------|-------|
+| `X-Frame-Options` | `DENY` |
+| `X-Content-Type-Options` | `nosniff` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `Content-Security-Policy` | Configured per deployment |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains; preload` (SSL only) |
+
+## GeoIP Country Tracking
+
+Client IP addresses are tracked with 2-letter ISO country codes. The admin panel shows country flag emojis alongside IPs for bearer tokens, agent tokens, and OAuth clients.
+
+Country resolution priority:
+1. **CF-IPCountry header** — authoritative when behind Cloudflare
+2. **GeoLite2-Country MMDB** — offline database bundled at Docker build time
+
+Two database sources are available:
+- **P3TERX Generic** (default) — community mirror, no account needed
+- **MaxMind API** — official source with a free license key
+
+See [Configuration > GeoIP](/configuration#geoip-optional) for setup details.
+
+## Self-Hosted Security Checklist
+
+Before deploying to production:
+
+### Environment Configuration
+
+- [ ] `STUDIO_ENCRYPTION_KEY` is set to a strong encryption key (not auto-generated)
+- [ ] `STUDIO_JWT_SECRET` is set to a strong random string (not auto-generated)
+- [ ] `REDIS_PASSWORD` is set to a strong, unique password
+- [ ] `STUDIO_AGENT_SERVICE_TOKEN` is set to a strong random token
+- [ ] `.env` file has restricted file permissions (`chmod 600 .env`)
+
+### Network
+
+- [ ] Only ports 3000 and/or 443 are exposed to the host
+- [ ] Backend, Redis, MCP, and Agent MCP ports are not exposed
+- [ ] Firewall rules restrict access to necessary ports only
+
+### SSL/TLS
+
+- [ ] SSL is enabled for production deployments
+- [ ] A valid domain name is configured
+- [ ] Let's Encrypt certificates are issued and auto-renewing
+- [ ] HTTP-to-HTTPS redirect is configured
+
+### Authentication
+
+- [ ] Admin account has a strong password (min 8 chars)
+- [ ] 2FA (TOTP) is enabled for the admin account
+- [ ] MCP auth token is set if the MCP server is network-accessible
+- [ ] Agent tokens use appropriate expiry (max 7 days)
+- [ ] Unused agent tokens and OAuth clients are revoked
+
+### CORS
+
+- [ ] CORS origins are set to specific domains (no wildcard)
+- [ ] Only trusted origins are listed
+
+---
+
+## See Also
+
+- [Configuration Reference](/configuration) — environment variables, encryption key management, CORS settings
+- [SSL/HTTPS Setup](/user-guide/ssl-https) — certificate provisioning and domain configuration
+- [Agent MCP](/api-reference/agent-mcp) — agent token management and OAuth2 setup
+- [Connections](/user-guide/connections) — database credentials and encrypted extra params
+- [Troubleshooting](/troubleshooting) — diagnosing auth, CORS, and SSL issues
