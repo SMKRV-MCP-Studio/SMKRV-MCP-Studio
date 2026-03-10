@@ -1,0 +1,78 @@
+---
+title: "Prompts"
+description: "Design reusable prompt templates with auto-detected arguments"
+icon: "message"
+---
+
+Prompts provide reusable message templates that MCP clients can retrieve and fill with arguments. They help standardize how LLMs interact with your tools and resources.
+
+## Template Syntax
+
+Prompt templates use `{argument_name}` syntax for variable substitution:
+
+```
+Analyze the {metric} data for {department} over the past {time_period}.
+Focus on trends and anomalies. Present results as a structured summary.
+```
+
+When a client requests this prompt, it provides values for `metric`, `department`, and `time_period`.
+
+## Arguments
+
+Arguments are auto-detected from the template text. Each `{argument_name}` placeholder becomes a configurable argument:
+
+| Property | Description |
+|----------|-------------|
+| Name | Auto-detected from `{name}` |
+| Description | Human-readable explanation |
+| Required | Whether the client must provide this argument |
+
+### Auto-Detection
+
+As you type the template, arguments are automatically extracted and listed. Adding `{new_arg}` immediately creates a new argument entry.
+
+## Preview
+
+The preview panel lets you test your prompt with sample values:
+
+1. Enter test values for each argument
+2. The preview shows the fully rendered prompt
+3. Verify the output reads correctly before saving
+
+## Managing Prompts
+
+### Creating a Prompt
+
+1. Navigate to **Prompts** in the sidebar
+2. Click **New Prompt**
+3. Enter a name and description
+4. Write the template text with `{argument}` placeholders
+5. Configure each detected argument
+6. Click **Save**
+
+### Editing and Deleting
+
+- **Edit**: Click a prompt card to open the editor
+- **Delete**: Click the delete icon and confirm
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Tools" icon="wrench" href="/user-guide/tools">
+    Build SQL-backed tools that prompts can reference
+  </Card>
+  <Card title="Resources" icon="file-code" href="/user-guide/resources">
+    Expose data as readable MCP resources
+  </Card>
+  <Card title="Flow Editor" icon="diagram-project" href="/user-guide/flow-editor">
+    Manage prompts visually on the drag-and-drop canvas
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy your prompts as part of the MCP server
+  </Card>
+  <Card title="REST API" icon="code" href="/api-reference/overview">
+    Prompt CRUD endpoints in the REST API
+  </Card>
+</CardGroup>
