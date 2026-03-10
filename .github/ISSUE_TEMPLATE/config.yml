@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://docs.smcps.net/
+    about: Check the documentation before opening an issue
+  - name: Website
+    url: https://smcps.net/
+    about: Visit the project website

@@ -1,0 +1,67 @@
+---
+title: "Introduction"
+description: "SMKRV MCP Studio — Docker web app for visually building MCP servers from your databases"
+icon: "house"
+---
+
+# SMKRV MCP Studio
+
+SMKRV MCP Studio is a Docker application for visually constructing **MCP (Model Context Protocol) servers** from your existing databases. Connect your databases, build SQL-backed tools and resources, design prompt templates, and deploy a fully functional MCP server — all from a visual web interface.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Connection Manager" icon="database" href="/user-guide/connections">
+    PostgreSQL, MySQL, Microsoft SQL Server, ClickHouse, SQLite, Cassandra, Greenplum, Supabase, Snowflake, and BigQuery with encrypted credentials and connection pooling.
+  </Card>
+  <Card title="Tool Builder" icon="wrench" href="/user-guide/tools">
+    Monaco SQL editor with parameter auto-detection, typed inputs, live preview, and code generation.
+  </Card>
+  <Card title="Visual Flow Editor" icon="diagram-project" href="/user-guide/flow-editor">
+    Drag-and-drop canvas for building and managing MCP configurations with template blueprints and batch operations.
+  </Card>
+  <Card title="One-Click Deploy" icon="rocket" href="/user-guide/deployment">
+    Generate and deploy a complete MCP server with real-time log streaming.
+  </Card>
+  <Card title="Agent MCP Access" icon="robot" href="/api-reference/agent-mcp">
+    44 MCP tools for AI agents (Claude, GPT, Cursor) with temporary tokens and OAuth2 client credentials.
+  </Card>
+  <Card title="Security" icon="shield-halved" href="/security">
+    Encryption at rest, TOTP 2FA, Docker network isolation, SSL/TLS with Let's Encrypt.
+  </Card>
+  <Card title="Operational Metrics" icon="chart-line" href="/user-guide/queue-management">
+    Per-tool call counts, response times, p95 latency, time-series charts, and queue monitoring.
+  </Card>
+  <Card title="Change History" icon="clock-rotate-left" href="/changelog">
+    Full audit trail for all entity changes with one-click rollback.
+  </Card>
+</CardGroup>
+
+## Architecture
+
+SMKRV MCP Studio runs as a **5-container Docker** application:
+
+| Container | Role |
+|-----------|------|
+| **frontend** | Web interface + reverse proxy |
+| **backend** | REST API + metadata storage |
+| **mcp** | Generated MCP server (your tools/resources) |
+| **agent-mcp** | Agent MCP server (37 management tools) |
+| **redis** | Query queues, metrics, agent tokens |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Getting Started" icon="play" href="/getting-started">
+    Run SMKRV MCP Studio in minutes with Docker.
+  </Card>
+  <Card title="User Guide" icon="book" href="/user-guide/connections">
+    Learn how to create connections, build tools, and deploy your MCP server.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference/overview">
+    Complete REST API documentation for all endpoints.
+  </Card>
+  <Card title="Agent MCP" icon="robot" href="/api-reference/agent-mcp">
+    Give AI agents programmatic access to manage your Studio configuration.
+  </Card>
+</CardGroup>
