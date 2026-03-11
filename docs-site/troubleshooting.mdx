@@ -1,0 +1,252 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for SMKRV MCP Studio"
+icon: "bug"
+---
+
+## Container Won't Start
+
+### Symptoms
+
+- `docker compose up` exits immediately or containers restart in a loop.
+- Health check failures in `docker ps`.
+
+### Solutions
+
+**Check container logs:**
+
+```bash
+docker compose logs backend
+docker compose logs frontend
+docker compose logs mcp
+docker compose logs redis
+
+# Follow logs in real time
+docker compose logs -f backend
+```
+
+**Port conflicts:**
+
+If another service is using port 3000 or 443:
+
+```bash
+# Check what is using the port
+lsof -i :3000
+lsof -i :443
+```
+
+**Docker resource limits:**
+
+Ensure Docker has sufficient memory and CPU allocated. The recommended minimum is 4 GB RAM.
+
+**Rebuild containers:**
+
+```bash
+docker compose down
+docker compose build --no-cache
+docker compose up -d
+```
+
+---
+
+## Database Connection Failures
+
+See also: [Connections Guide](/user-guide/connections)
+
+### Symptoms
+
+- "Connection refused" or "Connection timed out" errors when testing a connection.
+- Tools fail with database errors after deploy.
+
+### Solutions
+
+**Check network accessibility:**
+
+Ensure the database host is reachable from the Docker network. If the database runs on the host machine, use `host.docker.internal` instead of `localhost`.
+
+**Verify credentials:**
+
+- Double-check the username, password, and database name.
+- Test the connection using the "Test Connection" button in the UI.
+
+**SSL mode:**
+
+| SSL Mode | When to use |
+|----------|-------------|
+| `disable` | Local development, trusted networks |
+| `require` | Remote databases (encrypt but don't verify certificate) |
+| `verify-ca` | Production (verify server certificate authority) |
+| `verify-full` | Highest security (verify CA and hostname) |
+
+**Database server configuration:**
+
+- PostgreSQL: check `pg_hba.conf` for allowed client addresses.
+- MySQL: check user host restrictions.
+- ClickHouse: check `users.xml` for allowed networks.
+
+---
+
+## Deploy Fails / MCP Won't Start
+
+### Symptoms
+
+- Deploy button shows an error.
+- MCP container starts then immediately exits.
+
+### Solutions
+
+**Check the Logs tab:**
+
+Go to **Server > Logs** to see the real-time MCP server output. Common error patterns:
+- `ModuleNotFoundError` — a required Python package is missing.
+- `SyntaxError` — generated code has a syntax issue.
+- `ConnectionRefusedError` — the MCP server can't connect to a configured database.
+
+You can also check container-level logs via the terminal:
+
+```bash
+docker compose logs mcp
+```
+
+**Restart the deploy:**
+
+1. Go to the **Server** page
+2. Click **Stop** to shut down the MCP server
+3. Click **Deploy** to regenerate code and start fresh
+4. Watch the **Logs** tab for errors during startup
+
+---
+
+## SSL Certificate Issues
+
+See also: [SSL/HTTPS Setup](/user-guide/ssl-https)
+
+### Symptoms
+
+- "Certificate issuance failed" error.
+- HTTPS not working after enabling SSL.
+
+### Solutions
+
+**Domain DNS:**
+
+Ensure the domain's DNS A record points to the server's public IP address:
+
+```bash
+dig +short mcp.example.com
+```
+
+**Port 80 accessibility:**
+
+Let's Encrypt's HTTP-01 challenge requires port 80 to be accessible from the internet.
+
+**Rate limits:**
+
+Let's Encrypt enforces rate limits (50 certificates per domain per week). Use staging for testing:
+
+```
+STUDIO_SSL_STAGING=true
+```
+
+---
+
+## CORS Errors
+
+### Symptoms
+
+- Browser console shows "Access-Control-Allow-Origin" errors.
+- API calls fail from the frontend but work from curl.
+
+### Solutions
+
+**Check the CORS origins setting:**
+
+Go to **Server > Settings > Security** and review the **CORS Origins** field. The origin must match exactly, including protocol and port:
+
+```
+# Correct
+http://localhost:3000
+https://mcp.example.com
+
+# Incorrect
+http://localhost       # Missing port
+localhost:3000         # Missing protocol
+```
+
+---
+
+## WebSocket Disconnects
+
+### Symptoms
+
+- Deploy logs stop streaming after a few seconds.
+- "WebSocket connection closed" errors in the browser console.
+
+### Solutions
+
+Ensure nginx WebSocket upgrade headers are configured. If running behind an additional reverse proxy (Cloudflare, AWS ALB), configure WebSocket support on that layer as well.
+
+---
+
+## Redis Connection Issues
+
+### Symptoms
+
+- Queue metrics endpoint returns errors.
+- "Connection refused" for Redis in backend logs.
+
+### Solutions
+
+**Password mismatch:**
+
+```bash
+docker compose exec redis redis-cli -a "${REDIS_PASSWORD}" ping
+# Should return: PONG
+```
+
+**Container health:**
+
+```bash
+docker compose ps redis
+docker compose logs redis
+```
+
+---
+
+## General Debugging Tips
+
+1. **Always check container logs first** — most issues are visible in the logs.
+2. **Use the health endpoints** to verify each service is running:
+   - Backend: `GET /api/health`
+   - MCP: `GET /api/v1/server/health`
+   - Deploy status: `GET /api/v1/deploy/status`
+3. **Restart a single container** without affecting others:
+   ```bash
+   docker compose restart backend
+   ```
+4. **Clean slate** — if all else fails, remove volumes and rebuild:
+   ```bash
+   docker compose down -v
+   docker compose build --no-cache
+   docker compose up -d
+   ```
+   <Warning>This deletes all data (database, generated code, certificates).</Warning>
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Environment variables and Docker settings
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy, stop, and monitor the MCP server
+  </Card>
+  <Card title="Queue Management" icon="bars-staggered" href="/user-guide/queue-management">
+    Concurrent query control and Redis queue metrics
+  </Card>
+  <Card title="Security" icon="shield-halved" href="/security">
+    Authentication, encryption, and container hardening
+  </Card>
+</CardGroup>

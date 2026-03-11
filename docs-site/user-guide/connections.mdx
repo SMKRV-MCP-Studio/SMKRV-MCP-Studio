@@ -1,0 +1,110 @@
+---
+title: "Connections"
+description: "Create and manage database connections for your MCP tools and resources"
+icon: "database"
+---
+
+Database connections are the foundation of MCP Studio. Every SQL-backed tool and dynamic resource requires a connection to query data from.
+
+## Supported Databases
+
+| Database | Default Port | Category |
+|----------|--------------|----------|
+| PostgreSQL | 5432 | Relational |
+| MySQL / MariaDB | 3306 | Relational |
+| Microsoft SQL Server | 1433 | Relational |
+| ClickHouse | 9000 | Analytical |
+| Cassandra / ScyllaDB | 9042 | NoSQL |
+| Greenplum | 5432 | Analytical |
+| Supabase | 5432 | Cloud |
+| Snowflake | 443 | Cloud |
+| Google BigQuery | — | Cloud |
+| SQLite | — | Embedded |
+
+## Creating a Connection
+
+Navigate to **Connections** in the sidebar and click **New Connection**.
+
+### Form Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Name | Yes | Display name for the connection |
+| Database Type | Yes | Select from 10 supported types |
+| Host | Yes* | Hostname or IP address (*not required for cloud DBs) |
+| Port | Yes* | Port number (auto-filled based on db type) |
+| Database | Yes | Database name to connect to |
+| Username | Yes | Authentication username |
+| Password | Yes | Authentication password (encrypted at rest) |
+| SSL Mode | No | SSL connection mode |
+| Pool Min | No | Minimum connection pool size |
+| Pool Max | No | Maximum connection pool size |
+| Extra Params | No | Additional parameters as JSON object |
+
+<Note>
+  Cloud databases (BigQuery, Snowflake, Supabase) have different required fields — the form adapts automatically based on the selected database type.
+</Note>
+
+### SSL Modes
+
+For PostgreSQL connections:
+
+- `disable` — No SSL
+- `allow` — Try non-SSL first, then SSL
+- `prefer` — Try SSL first, then non-SSL (default)
+- `require` — Require SSL, skip CA verification
+- `verify-ca` — Require SSL with CA verification
+- `verify-full` — Require SSL with full hostname verification
+
+## Testing Connection Health
+
+After filling in the connection form, click the **Test Connection** button to verify connectivity before saving. The test will:
+
+1. Attempt to establish a connection using the provided credentials
+2. Execute a lightweight health-check query
+3. Report success or display the error message
+
+## Schema Explorer
+
+Once a connection is saved and healthy, the schema explorer lets you browse the database structure:
+
+- **Tables** — lists all tables in the connected database
+- **Columns** — click a table to see its columns, data types, and nullability
+
+This is useful when writing SQL queries for tools and resources.
+
+## Queue Settings
+
+Each connection has individual queue settings to control concurrent query execution:
+
+| Setting | Range | Default | Description |
+|---------|-------|---------|-------------|
+| `max_concurrent_queries` | 1–200 | 5 | Maximum simultaneous queries |
+| `queue_timeout_seconds` | 1–300 | 30 | How long a query waits in queue before timeout |
+| `queue_enabled` | boolean | true | Enable or disable query queueing |
+
+See [Queue Management](/user-guide/queue-management) for details.
+
+## Editing and Deleting
+
+- **Edit**: Click a connection card to open it for editing. Modify any field and click **Save**.
+- **Delete**: Click the delete icon. Connections bound to tools or resources cannot be deleted until those references are removed.
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Tools" icon="wrench" href="/user-guide/tools">
+    Build SQL-backed tools that query your connections
+  </Card>
+  <Card title="Resources" icon="file-code" href="/user-guide/resources">
+    Create dynamic resources backed by your connections
+  </Card>
+  <Card title="Flow Editor" icon="diagram-project" href="/user-guide/flow-editor">
+    Manage connections visually on the drag-and-drop canvas
+  </Card>
+  <Card title="Troubleshooting" icon="bug" href="/troubleshooting">
+    Database connection failures and debugging tips
+  </Card>
+</CardGroup>
