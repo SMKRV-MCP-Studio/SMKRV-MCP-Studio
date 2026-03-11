@@ -1,0 +1,119 @@
+---
+title: "Getting Started"
+description: "Install and run SMKRV MCP Studio with Docker in minutes"
+icon: "play"
+---
+
+## System Requirements
+
+### Hardware
+
+|  | Minimum | Recommended |
+|--|---------|-------------|
+| **CPU** | 2 cores | 4+ cores |
+| **RAM** | 2 GB | 4 GB |
+| **Disk** | 4 GB | 10 GB |
+| **Arch** | x86_64 (amd64) or ARM64 | — |
+
+<Info>
+  **Minimum** is enough to run the application with 1–2 database connections under light load.
+  **Recommended** provides comfortable headroom for multiple connections, concurrent queries, and the ML-based prompt injection guard (DeBERTa ONNX model, ~180 MB).
+</Info>
+
+For high-load scenarios (10+ connections, heavy concurrent queries):
+- 4–8 CPU cores, 8 GB RAM, 20 GB disk
+
+### Software
+
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| Docker | 24+ | Container runtime |
+| Docker Compose | v2+ | Multi-container orchestration |
+
+## Quick Start
+
+<Steps>
+  <Step title="Create a project directory">
+    ```bash
+    mkdir smkrv-mcp-studio && cd smkrv-mcp-studio
+    ```
+  </Step>
+  <Step title="Download docker-compose.yml">
+    Download `docker-compose.yml` and `.env.example` from [smcps.net](https://smcps.net/) and place them in the project directory.
+  </Step>
+  <Step title="Create .env file">
+    Create a `.env` file with the required security variables:
+
+    ```env
+    STUDIO_ENCRYPTION_KEY=<generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
+    STUDIO_JWT_SECRET=<generate: openssl rand -hex 32>
+    REDIS_PASSWORD=<generate: openssl rand -base64 32>
+    STUDIO_AGENT_SERVICE_TOKEN=<generate: openssl rand -hex 32>
+    ```
+
+    See [Configuration Reference](/configuration) for all available variables and how to generate secret values.
+  </Step>
+  <Step title="Start the application">
+    ```bash
+    docker compose up -d
+
+    # Verify
+    curl http://localhost:3000/api/health
+    # Expected: {"status":"ok","version":"..."}
+    ```
+  </Step>
+</Steps>
+
+The UI is available at `http://localhost:3000`.
+
+## First-Run Setup
+
+On first visit, the app detects that no admin account exists and shows the **Setup** screen:
+
+1. **Create Admin Account** — enter a username and password (minimum 8 characters). This is the only admin account for the installation.
+
+2. **Login** — after setup, you are automatically logged in and redirected to the Dashboard.
+
+3. **(Optional) Enable 2FA** — go to Settings, open the 2FA section, and scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password, etc.). Save your recovery codes.
+
+## First Steps
+
+<Steps>
+  <Step title="Create a Connection">
+    Go to the [Connections](/user-guide/connections) page, click **New Connection**, select your database type, enter credentials, and test the connection.
+  </Step>
+  <Step title="Build a Tool">
+    Go to the [Tools](/user-guide/tools) page, click **New Tool**, select your connection, write a SQL query with parameters (e.g., `SELECT * FROM users WHERE id = :user_id`), and save.
+  </Step>
+  <Step title="Build Resources and Prompts">
+    Optionally create [Resources](/user-guide/resources) (data endpoints) and [Prompts](/user-guide/prompts) (template messages) in the same way.
+  </Step>
+  <Step title="Deploy">
+    Go to the Server page and click **Deploy**. See [Deployment](/user-guide/deployment) for details and MCP client configuration.
+  </Step>
+  <Step title="Connect a Client">
+    Go to Server > Connect tab to get the MCP endpoint URL and configuration snippets for Claude Desktop, Cursor, or Claude Code.
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Open `http://localhost:3000` in your browser — you should see the **Setup** screen (first run) or the **Login** page.
+
+You can also verify via the terminal:
+
+```bash
+curl http://localhost:3000/api/health
+# Expected: {"status":"ok","version":"..."}
+```
+
+After deploying your first MCP server, check its status on the **Server** page — the status badge shows **Running** when the server is active.
+
+## Next Steps
+
+- [Visual Flow Editor](/user-guide/flow-editor) — drag-and-drop canvas for managing your entire configuration
+- [Configuration Reference](/configuration) — all environment variables and server settings
+- [Security Guide](/security) — encryption, authentication, and hardening
+- [API Reference](/api-reference/overview) — complete REST API documentation
+- [Agent MCP](/api-reference/agent-mcp) — AI agent access via MCP protocol
+- [Troubleshooting](/troubleshooting) — common issues and solutions
