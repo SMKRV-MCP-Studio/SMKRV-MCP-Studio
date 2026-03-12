@@ -1,0 +1,131 @@
+---
+title: "Deployment"
+description: "Deploy, stop, and connect to your generated MCP server"
+icon: "rocket"
+---
+
+MCP Studio generates a complete FastMCP server from your configured connections, tools, resources, and prompts, and deploys it as a running service.
+
+## One-Click Deploy
+
+Navigate to the **Server** page and click **Deploy**. This triggers:
+
+1. Python source code is generated from all configured components
+2. The FastMCP server process starts inside the MCP container
+3. The server registers all tools, resources, and prompts
+4. The MCP endpoint becomes available for client connections
+
+## Real-Time Log Viewer
+
+The **Logs** tab on the Server page shows live output from the MCP server process. Logs are streamed via WebSocket.
+
+Use the log viewer to:
+- Verify the server started successfully
+- Debug issues with specific tools or resources
+- Monitor incoming MCP client requests
+
+## Server Status
+
+| Status | Description |
+|--------|-------------|
+| Running | MCP server is active and accepting connections |
+| Stopped | MCP server is not running |
+
+## Stop and Restart
+
+- **Stop**: Click **Stop** to shut down the running MCP server
+- **Restart**: Click **Deploy** again to regenerate code and start a fresh instance
+
+## Connecting MCP Clients
+
+After deployment, connect MCP clients using the endpoint URL displayed on the **Server → Connect** tab or the **MCP Access** page.
+
+<Note>
+  The `"type": "http"` field is **required** for Claude Code and most modern MCP clients.
+</Note>
+
+### Claude Code
+
+Add to `~/.claude/mcp.json` or your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcp-studio": {
+      "type": "http",
+      "url": "http://<host>/mcp"
+    }
+  }
+}
+```
+
+Or use the CLI:
+
+```bash
+claude mcp add --transport http mcp-studio http://<host>/mcp
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcp-studio": {
+      "type": "http",
+      "url": "http://<host>/mcp"
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcp-studio": {
+      "type": "http",
+      "url": "http://<host>/mcp"
+    }
+  }
+}
+```
+
+### MCP Endpoint URL
+
+```
+http://<host>/mcp
+```
+
+Replace `<host>` with your server's hostname (e.g. `localhost:3000` or your domain).
+
+If SSL is enabled, use `https://`. See [SSL/HTTPS Setup](/user-guide/ssl-https) for details.
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Tools" icon="wrench" href="/user-guide/tools">
+    Build the SQL-backed tools that get deployed
+  </Card>
+  <Card title="Resources" icon="file-code" href="/user-guide/resources">
+    Create the MCP resources included in deployment
+  </Card>
+  <Card title="SSL/HTTPS Setup" icon="lock" href="/user-guide/ssl-https">
+    Enable HTTPS for the MCP endpoint
+  </Card>
+  <Card title="Queue Management" icon="bars-staggered" href="/user-guide/queue-management">
+    Control concurrent query execution per connection
+  </Card>
+  <Card title="Agent MCP" icon="robot" href="/api-reference/agent-mcp">
+    Give AI agents programmatic access to your Studio
+  </Card>
+  <Card title="Troubleshooting" icon="bug" href="/troubleshooting">
+    Common deployment issues and solutions
+  </Card>
+</CardGroup>

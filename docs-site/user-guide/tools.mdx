@@ -1,0 +1,182 @@
+---
+title: "Tools"
+description: "Build SQL-backed MCP tools with typed parameters and live preview"
+icon: "wrench"
+---
+
+Tools are the primary way MCP clients interact with your data. Each tool wraps a SQL query with typed parameters, metadata, and safety annotations.
+
+## Tool Builder Layout
+
+The tool builder uses a 3-column layout:
+
+| Column | Purpose |
+|--------|---------|
+| Left | SQL editor (Monaco) for writing the query |
+| Center | Parameter designer for defining inputs |
+| Right | Preview panel with execution results and code output |
+
+## Writing SQL Queries
+
+Use `:param_name` to define query parameters:
+
+```sql
+SELECT *
+FROM users
+WHERE status = :status
+  AND created_at >= :start_date
+LIMIT :limit
+```
+
+Parameters are automatically detected from the query text and appear in the center column for configuration.
+
+## Parameter Designer
+
+Each detected parameter can be configured:
+
+| Field | Description |
+|-------|-------------|
+| Name | Auto-detected from `:name` in SQL |
+| Type | `string`, `integer`, `number`, or `boolean` |
+| Required | Whether the client must provide this parameter |
+| Default | Default value if not supplied |
+| Enum Values | Restrict input to allowed values (comma-separated) |
+| Description | Human-readable description shown to MCP clients |
+
+## SQL Preview
+
+The right column includes a **Preview** tab for test-executing your query:
+
+1. Fill in test values for each parameter
+2. Click **Run Preview**
+3. Results display in a table format
+
+<Note>
+  Preview queries execute in **read-only** mode with an automatic `LIMIT` applied.
+</Note>
+
+## Tool Metadata
+
+| Field | Description |
+|-------|-------------|
+| Name | Tool identifier (used by MCP clients to call the tool) |
+| Description | What the tool does (shown to LLMs for tool selection) |
+| Tags | Categorical labels for organization |
+| Cache TTL | How long results are cached (in seconds, 0 = no cache) |
+
+### Annotations
+
+Annotations provide safety hints to MCP clients:
+
+| Annotation | Description |
+|------------|-------------|
+| `read_only` | Tool only reads data |
+| `destructive` | Tool may delete or alter data |
+| `open_world` | Tool interacts with external systems |
+| `idempotent` | Repeated calls produce the same result |
+
+## Transform Templates (Jinja2)
+
+Optionally add a post-processing template to transform SQL results before they reach MCP clients. The transform editor appears below the SQL editor and is collapsible.
+
+### Template Context
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `rows` | list of dicts | Raw SQL query results |
+| `vars` | dict | Server-level global variables (set in Settings) |
+| `params` | dict | Tool parameter values passed by the caller |
+
+### Built-in Filters
+
+| Filter | Example | Description |
+|--------|---------|-------------|
+| `tojson` | `{{ rows \| tojson }}` | Serialize to JSON |
+| `groupby` | `rows \| groupby('category')` | Group rows by field |
+| `sum_attr` | `rows \| sum_attr('amount')` | Sum a numeric attribute |
+| `map_attr` | `rows \| map_attr('name')` | Extract a single field |
+| `unique` | `rows \| unique` | Deduplicate rows |
+
+Standard Jinja2 built-ins are also available: `sum`, `len`, `min`, `max`, `round`, `sorted`, `enumerate`, `zip`, `range`.
+
+### Example: Sum and Count
+
+```jinja2
+[{"total_amount": {{ rows | sum(attribute='amount') }}, "count": {{ rows | length }}}]
+```
+
+### Example: Filter and Restructure
+
+```jinja2
+[
+{% for row in rows if row.status == 'active' %}
+  {"name": "{{ row.name }}", "revenue": {{ row.revenue | round(2) }}}{% if not loop.last %},{% endif %}
+{% endfor %}
+]
+```
+
+### Example: Use Global Variables
+
+```jinja2
+[
+{% for row in rows %}
+  {"product": "{{ row.name }}", "price": "{{ row.price }} {{ vars.currency }}"}{% if not loop.last %},{% endif %}
+{% endfor %}
+]
+```
+
+### Preview with Transforms
+
+When a transform template is set, the preview panel shows two tabs:
+- **Raw** — SQL query results as-is
+- **Transformed** — results after applying the template
+
+Transform errors appear as warnings without blocking the raw results.
+
+<Note>
+  Templates run in a sandboxed environment with a 10 MB output limit. Unsafe operations (file access, imports, class introspection) are blocked.
+</Note>
+
+## Code Preview
+
+The **Code** tab shows the generated Python code that will run inside the deployed FastMCP server. This is read-only and updates automatically.
+
+## Connection Binding
+
+Each tool must be bound to a database connection. Select the connection from the dropdown at the top of the tool builder.
+
+## Duplicating Tools
+
+Open a tool and click **Duplicate** to create a copy with the name `<original>_copy`.
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+S` | Save the current tool |
+| `Ctrl+Enter` | Run preview execution |
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Connections" icon="database" href="/user-guide/connections">
+    Create and manage the database connections that tools query against
+  </Card>
+  <Card title="Resources" icon="file-code" href="/user-guide/resources">
+    Expose data as readable MCP resources with URI templates
+  </Card>
+  <Card title="Prompts" icon="message" href="/user-guide/prompts">
+    Design reusable prompt templates for LLM interactions
+  </Card>
+  <Card title="Flow Editor" icon="diagram-project" href="/user-guide/flow-editor">
+    Manage tools visually on the drag-and-drop canvas
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy your tools as a running MCP server
+  </Card>
+  <Card title="REST API" icon="code" href="/api-reference/overview">
+    Tool CRUD endpoints in the REST API
+  </Card>
+</CardGroup>

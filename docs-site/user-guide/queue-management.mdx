@@ -1,0 +1,94 @@
+---
+title: "Queue Management"
+description: "Redis-backed query queue for concurrent execution control per connection"
+icon: "bars-staggered"
+---
+
+SMKRV MCP Studio uses a Redis-backed queue to control concurrent query execution per database connection. This prevents overwhelming databases with too many simultaneous queries.
+
+## Overview
+
+When an MCP client calls a tool that executes a SQL query:
+
+1. The tool requests a query slot for its bound connection
+2. If a slot is available (under `max_concurrent_queries`), the query executes immediately
+3. If all slots are taken, the query is placed in a FIFO queue
+4. When a running query completes, the next queued query is released
+5. If a queued query waits longer than `queue_timeout_seconds`, it is rejected
+
+## Per-Connection Settings
+
+Configure queue settings in the connection editor: go to **Connections**, open a connection, and scroll to the **Queue** section. Each connection has independent settings:
+
+| Setting | Range | Default | Description |
+|---------|-------|---------|-------------|
+| `max_concurrent_queries` | 1–200 | 5 | Maximum queries running simultaneously |
+| `queue_timeout_seconds` | 1–300 | 30 | Maximum wait time in the queue |
+| `queue_enabled` | boolean | true | Whether queueing is active |
+
+### Choosing Values
+
+- **Small databases or shared hosts**: Keep `max_concurrent_queries` low (2–5)
+- **Dedicated database servers**: Increase to 20–50 depending on capacity
+- **Long-running analytical queries**: Increase `queue_timeout_seconds` to 120–300
+- **Quick OLTP queries**: Keep timeout at 10–30 seconds
+
+## Queue Monitor
+
+The **Queue Monitor** tab on the Server page displays real-time metrics:
+
+| Metric | Description |
+|--------|-------------|
+| Active Queries | Number of queries currently executing per connection |
+| Queued Queries | Number of queries waiting in the queue |
+| Total Executed | Cumulative query count per connection |
+
+## Fallback Behavior
+
+When Redis is unavailable, MCP Studio falls back to in-memory concurrency control:
+
+| Feature | Redis Mode | Fallback Mode |
+|---------|------------|---------------|
+| Concurrency control | Distributed | Per-process only |
+| Queue persistence | Survives restarts | Lost on restart |
+| Metrics | Full | Limited |
+
+## Troubleshooting
+
+### Queries Timing Out in Queue
+
+- Increase `queue_timeout_seconds`
+- Increase `max_concurrent_queries` if the database can handle more load
+- Check for long-running queries holding slots
+
+### Redis Connection Failed
+
+```bash
+docker compose ps redis
+docker compose logs redis
+docker compose exec redis redis-cli -a "${REDIS_PASSWORD}" ping
+```
+
+### Queue Not Limiting Queries
+
+- Verify `queue_enabled` is `true` on the connection
+- Confirm Redis is connected (check the indicator on the Server page)
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Connections" icon="database" href="/user-guide/connections">
+    Configure queue settings per connection
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy the MCP server that uses the query queue
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Redis and queue environment variables
+  </Card>
+  <Card title="Troubleshooting" icon="bug" href="/troubleshooting">
+    Redis connection issues and debugging tips
+  </Card>
+</CardGroup>
