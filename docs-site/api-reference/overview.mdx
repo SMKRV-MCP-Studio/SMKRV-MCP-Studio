@@ -1,0 +1,403 @@
+---
+title: "REST API Reference"
+description: "Complete documentation for all SMKRV MCP Studio REST API endpoints"
+icon: "code"
+---
+
+## Base URL
+
+All API endpoints are served under `/api/v1` unless otherwise noted. The health endpoint is at `/api/health`.
+
+Interactive API documentation is available at:
+- **Swagger UI**: `http://localhost:3000/api/docs`
+- **ReDoc**: `http://localhost:3000/api/redoc`
+
+## Authentication
+
+All `/api/v1/*` endpoints require an authenticated admin session, except:
+
+- `GET /api/v1/auth/status` — check if setup is needed
+- `POST /api/v1/auth/setup` — create first admin
+- `POST /api/v1/auth/login` — authenticate
+- `POST /api/v1/auth/login/verify-2fa` — complete 2FA login
+- `POST /api/v1/auth/logout` — clear session
+- `GET /api/health` — health check
+
+## Pagination
+
+Endpoints that return lists accept:
+
+| Parameter | Type | Default | Max |
+|-----------|------|---------|-----|
+| `skip` | integer | 0 | — |
+| `limit` | integer | 50 | 100 |
+
+Response shape:
+
+```json
+{
+  "items": [],
+  "total": 0
+}
+```
+
+---
+
+## Health
+
+### `GET /api/health`
+
+Returns backend health status.
+
+```json
+{
+  "status": "ok",
+  "version": "..."
+}
+```
+
+---
+
+## Auth
+
+### `GET /api/v1/auth/status`
+
+Check whether initial admin setup is required. **No auth required.**
+
+### `POST /api/v1/auth/setup`
+
+Create the first admin account. Only works when no admin exists. **No auth required.**
+
+| Field | Type | Required |
+|-------|------|----------|
+| `username` | string | yes |
+| `password` | string | yes (min 8 chars) |
+
+### `POST /api/v1/auth/login`
+
+Authenticate with username and password. If 2FA is enabled, returns a `pending_token` for the verification step. **No auth required.**
+
+### `POST /api/v1/auth/login/verify-2fa`
+
+Verify a TOTP code or recovery code. **No auth required.**
+
+| Field | Type | Required |
+|-------|------|----------|
+| `pending_token` | string | yes |
+| `code` | string | yes |
+| `is_recovery` | boolean | no |
+
+### `POST /api/v1/auth/logout`
+
+Clear the session cookie.
+
+### `GET /api/v1/auth/me`
+
+Get current admin info. Returns `username` and `totp_enabled`.
+
+### `PATCH /api/v1/auth/me`
+
+Update username and/or password. Requires `current_password`.
+
+### 2FA Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/v1/auth/2fa/setup` | Begin 2FA setup (returns QR code + recovery codes) |
+| `POST /api/v1/auth/2fa/verify-setup` | Verify TOTP code to activate 2FA |
+| `POST /api/v1/auth/2fa/disable` | Disable 2FA (requires password + TOTP) |
+| `POST /api/v1/auth/2fa/regenerate-recovery` | Regenerate recovery codes |
+| `GET /api/v1/auth/2fa/status` | Get 2FA status and remaining recovery codes |
+
+---
+
+## Connections
+
+### `GET /api/v1/connections`
+
+List all connections. Supports pagination.
+
+### `POST /api/v1/connections`
+
+Create a new connection.
+
+| Field | Type | Required |
+|-------|------|----------|
+| `name` | string | yes |
+| `db_type` | string | yes |
+| `host` | string | yes |
+| `port` | integer | yes |
+| `database` | string | yes |
+| `username` | string | no |
+| `password` | string | no |
+| `ssl_mode` | string | no |
+| `extra_params` | object | no |
+
+### `GET /api/v1/connections/{id}`
+
+Get a single connection.
+
+### `PATCH /api/v1/connections/{id}`
+
+Update a connection. Supports optimistic locking via `version` field.
+
+### `DELETE /api/v1/connections/{id}`
+
+Delete a connection (cascades to tools, resources, prompts).
+
+### `POST /api/v1/connections/{id}/test`
+
+Test connectivity. Returns `success`, `message`, and `latency_ms`.
+
+---
+
+## Tools
+
+### `GET /api/v1/tools`
+
+List all tools. Supports pagination.
+
+### `POST /api/v1/tools`
+
+Create a new tool.
+
+| Field | Type | Required |
+|-------|------|----------|
+| `connection_id` | UUID | yes |
+| `name` | string | yes |
+| `description` | string | yes |
+| `sql_query` | string | yes |
+| `parameters` | array | no |
+| `tags` | array | no |
+| `return_type` | string | no |
+| `transform_template` | string | no |
+
+### `GET /api/v1/tools/{id}` / `PATCH /api/v1/tools/{id}` / `DELETE /api/v1/tools/{id}`
+
+Standard CRUD. PATCH auto-increments `version`.
+
+### `POST /api/v1/tools/{id}/duplicate`
+
+Create a copy with `_copy` suffix.
+
+---
+
+## Resources
+
+### `GET /api/v1/resources` / `POST /api/v1/resources`
+
+List or create resources.
+
+| Field | Type | Required |
+|-------|------|----------|
+| `connection_id` | UUID | yes |
+| `name` | string | yes |
+| `description` | string | yes |
+| `uri_template` | string | yes |
+| `sql_query` | string | yes |
+| `parameters` | array | no |
+| `mime_type` | string | no |
+
+### `GET /api/v1/resources/{id}` / `PATCH /api/v1/resources/{id}` / `DELETE /api/v1/resources/{id}`
+
+Standard CRUD.
+
+---
+
+## Prompts
+
+### `GET /api/v1/prompts` / `POST /api/v1/prompts`
+
+List or create prompts.
+
+| Field | Type | Required |
+|-------|------|----------|
+| `name` | string | yes |
+| `description` | string | yes |
+| `template` | string | yes |
+| `arguments` | array | no |
+
+### `GET /api/v1/prompts/{id}` / `PATCH /api/v1/prompts/{id}` / `DELETE /api/v1/prompts/{id}`
+
+Standard CRUD.
+
+---
+
+## Schema
+
+### `GET /api/v1/schema/{connection_id}/tables`
+
+List all tables in the connected database.
+
+### `GET /api/v1/schema/{connection_id}/tables/{table}/columns`
+
+List columns for a specific table.
+
+---
+
+## Preview
+
+### `POST /api/v1/preview/execute`
+
+Execute a SQL query in read-only mode (10-second timeout).
+
+| Field | Type | Required |
+|-------|------|----------|
+| `connection_id` | UUID | yes |
+| `sql_query` | string | yes |
+| `parameters` | object | no |
+| `transform_template` | string | no |
+
+Returns `rows`, `columns`, `row_count`, `execution_time`. When `transform_template` is provided, also returns `transformed_result` and optionally `transform_error`.
+
+---
+
+## Deploy
+
+### `POST /api/v1/deploy`
+
+Generate code and deploy the MCP server.
+
+### `GET /api/v1/deploy/status`
+
+Get deployment status: `stopped`, `deploying`, `running`, or `error`.
+
+### `POST /api/v1/deploy/stop`
+
+Stop the running MCP container.
+
+### `WS /api/v1/deploy/logs`
+
+WebSocket endpoint for streaming MCP container logs in real time.
+
+---
+
+## Server Configuration
+
+### `GET /api/v1/server/config`
+
+Get the current server configuration.
+
+### `PATCH /api/v1/server/config`
+
+Update server configuration.
+
+### `GET /api/v1/server/health`
+
+Get MCP server health status.
+
+### `GET /api/v1/server/generated`
+
+Get the generated server code.
+
+### `GET /api/v1/server/ssl/status` / `POST /api/v1/server/ssl/issue`
+
+SSL certificate status and issuance.
+
+---
+
+## History
+
+### `GET /api/v1/history`
+
+List change history entries. Filter by `entity_type`, `entity_id`, `action`.
+
+### `GET /api/v1/history/{entity_type}/{entity_id}`
+
+Get change history for a specific entity.
+
+### `POST /api/v1/history/{history_id}/rollback`
+
+Rollback an entity to a previous snapshot.
+
+---
+
+## Queue & Metrics
+
+### `GET /api/v1/queue/metrics`
+
+Current queue metrics per connection.
+
+### `GET /api/v1/metrics/stats`
+
+Per-tool aggregate performance statistics.
+
+### `GET /api/v1/metrics/timeseries`
+
+Minute-level time-series data. Query param: `period` (`1h`, `6h`, `24h`, `7d`).
+
+---
+
+## Export / Import
+
+### `GET /api/v1/export-import/export`
+
+Export all entities as JSON (passwords excluded).
+
+### `POST /api/v1/export-import/import`
+
+Import entities from JSON. Supports `dry_run` query parameter.
+
+---
+
+## Agent Tokens & OAuth Clients
+
+### `POST /api/v1/agent-tokens` / `GET /api/v1/agent-tokens` / `DELETE /api/v1/agent-tokens/{id}`
+
+Create, list, and revoke temporary agent tokens.
+
+### `POST /api/v1/oauth-clients` / `GET /api/v1/oauth-clients` / `DELETE /api/v1/oauth-clients/{id}`
+
+Create, list, and revoke OAuth2 clients.
+
+### `GET /api/v1/agent-activity`
+
+List recent agent activity log.
+
+---
+
+## Error Responses
+
+All errors follow a consistent format:
+
+```json
+{
+  "detail": "Human-readable error message"
+}
+```
+
+| HTTP Status | Meaning |
+|-------------|---------|
+| 400 | Bad request (validation error) |
+| 401 | Not authenticated |
+| 403 | Forbidden |
+| 404 | Not found |
+| 409 | Conflict (duplicate name, version mismatch) |
+| 422 | Unprocessable entity (validation error) |
+| 429 | Rate limited |
+| 500 | Internal server error |
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Agent MCP" icon="robot" href="/api-reference/agent-mcp">
+    AI agent access via 44 MCP tools with tokens and OAuth2
+  </Card>
+  <Card title="Connections" icon="database" href="/user-guide/connections">
+    Create and manage database connections (UI guide)
+  </Card>
+  <Card title="Tools" icon="wrench" href="/user-guide/tools">
+    Build SQL-backed MCP tools (UI guide)
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy the MCP server and connect clients
+  </Card>
+  <Card title="Security" icon="shield-halved" href="/security">
+    Authentication, 2FA, and encryption details
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Environment variables for all services
+  </Card>
+</CardGroup>
