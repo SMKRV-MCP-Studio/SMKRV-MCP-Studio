@@ -1,0 +1,427 @@
+"""Auth middleware for generated MCP server.
+
+Auth type: {{ config.auth_type }}
+Generated: {{ now }}
+"""
+from __future__ import annotations
+
+{% if config.auth_type in ("oauth_credentials", "oauth_introspection") %}
+import hashlib
+{% endif %}
+{% if config.auth_type in ("bearer", "oauth_credentials") %}
+import hmac
+{% endif %}
+{% if config.auth_type == "bearer" %}
+import json
+{% endif %}
+import logging
+{% if config.auth_type == "oauth_credentials" %}
+import secrets
+{% endif %}
+{% if config.auth_type in ("bearer", "oauth_credentials", "oauth_introspection") %}
+import time
+{% endif %}
+
+{% if config.auth_type == "bearer" %}
+import bcrypt as _bcrypt
+{% endif %}
+{% if config.auth_type == "oauth_introspection" %}
+import httpx
+{% endif %}
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+{% if config.auth_type == "bearer" %}
+from _shared.config import REDIS_URL
+{% endif %}
+{% if config.auth_type == "oauth_credentials" %}
+from _shared.config import REDIS_URL  # noqa: F811
+{% endif %}
+
+logger = logging.getLogger(__name__)
+
+{% if config.auth_type == "oauth_credentials" %}
+PUBLIC_PATHS = frozenset({
+    "/", "/health", "/oauth/token",
+    "/metrics/stats", "/metrics/timeseries", "/metrics/entity-summary",
+    "/queue/metrics",
+})
+{% else %}
+PUBLIC_PATHS = frozenset({
+    "/", "/health",
+    "/metrics/stats", "/metrics/timeseries", "/metrics/entity-summary",
+    "/queue/metrics",
+})
+{% endif %}
+
+{% if config.auth_type == "bearer" %}
+# ---------------------------------------------------------------------------
+# Bearer Token Auth (multi-token via Redis)
+# ---------------------------------------------------------------------------
+
+_redis = None
+# Legacy single-token fallback (from ServerConfig, for backward compat)
+_LEGACY_TOKEN = "{{ config.auth_bearer_token_decrypted | escape_quotes }}"
+
+
+async def _get_redis():
+    global _redis
+    if _redis is not None:
+        return _redis
+    try:
+        import redis.asyncio as aioredis
+        _redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        await _redis.ping()
+        return _redis
+    except Exception:
+        _redis = None
+        return None
+
+
+async def _validate_via_redis(token: str, client_ip: str = "", client_country: str = "") -> bool:
+    """Check token against Redis-stored MCP bearer tokens.
+
+    Tokens are stored by prefix: mcp:bearer:{prefix} -> JSON with bcrypt hash.
+    """
+    r = await _get_redis()
+    if r is None:
+        return False
+    prefix = token[:12]
+    key = f"mcp:bearer:{prefix}"
+    try:
+        data_raw = await r.get(key)
+        if not data_raw:
+            return False
+        data = json.loads(data_raw)
+        token_hash = data.get("token_hash", "")
+        if not _bcrypt.checkpw(token.encode(), token_hash.encode()):
+            return False
+        # Check idle timeout
+        usage_key = f"mcp:bearer_usage:{prefix}"
+        idle_minutes = data.get("idle_timeout_minutes")
+        if idle_minutes:
+            last_used_raw = await r.hget(usage_key, "last_used_at")
+            if last_used_raw:
+                last_used = float(last_used_raw)
+                if time.time() - last_used > idle_minutes * 60:
+                    return False
+        # Update usage tracking (last_used_at + client IP + country)
+        now = time.time()
+        usage = {"last_used_at": str(now)}
+        if client_ip:
+            usage["last_ip"] = client_ip
+        if client_country:
+            usage["last_country"] = client_country
+        await r.hset(usage_key, mapping=usage)
+        return True
+    except Exception:
+        return False
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract real client IP (CF > X-Forwarded-For > X-Real-IP > direct)."""
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip.strip()
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+    return request.client.host if request.client else ""
+
+
+def _get_client_country(request: Request) -> str:
+    """Extract client country from CF-IPCountry header (Cloudflare)."""
+    cf_country = request.headers.get("cf-ipcountry")
+    if cf_country and cf_country not in ("XX", "T1"):
+        code = cf_country.upper()[:2]
+        if len(code) == 2 and code.isalpha():
+            return code
+    return ""
+
+
+async def validate_request(request: Request) -> JSONResponse | None:
+    """Validate bearer token. Returns error response or None if valid."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        return JSONResponse(
+            {"error": "unauthorized", "error_description": "Bearer token required"},
+            status_code=401,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = auth_header[7:]
+    client_ip = _get_client_ip(request)
+    client_country = _get_client_country(request)
+    # Try multi-token Redis validation first
+    if await _validate_via_redis(token, client_ip, client_country):
+        return None
+    # Fallback: legacy single token from ServerConfig
+    if _LEGACY_TOKEN and hmac.compare_digest(token, _LEGACY_TOKEN):
+        return None
+    return JSONResponse(
+        {"error": "invalid_token", "error_description": "Invalid token"},
+        status_code=401,
+        headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+    )
+{% endif %}
+
+{% if config.auth_type == "oauth_credentials" %}
+# ---------------------------------------------------------------------------
+# OAuth2 Client Credentials (self-contained)
+# ---------------------------------------------------------------------------
+
+_CLIENTS: list[dict[str, str]] = {{ config.oauth_clients_decrypted_repr }}
+_TOKEN_TTL: int = {{ config.oauth_token_ttl_seconds or 3600 }}
+
+# In-memory fallback token store
+_tokens: dict[str, dict] = {}
+_MAX_IN_MEMORY_TOKENS = 10000
+
+_redis = None
+
+
+async def _get_redis():
+    global _redis
+    if _redis is not None:
+        return _redis
+    try:
+        import redis.asyncio as aioredis
+        _redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        await _redis.ping()
+        return _redis
+    except Exception:
+        _redis = None
+        return None
+
+
+async def _store_token(token: str, client_id: str, ttl: int) -> None:
+    """Store token in Redis (preferred) or in-memory."""
+    expires_at = time.time() + ttl
+    r = await _get_redis()
+    if r:
+        try:
+            key = f"mcp:token:{hashlib.sha256(token.encode()).hexdigest()}"
+            await r.hset(key, mapping={
+                "client_id": client_id,
+                "expires_at": str(expires_at),
+            })
+            await r.expire(key, ttl)
+            return
+        except Exception:
+            pass
+    # Evict expired / excess tokens before adding
+    if len(_tokens) >= _MAX_IN_MEMORY_TOKENS:
+        now_evict = time.time()
+        expired_keys = [k for k, v in _tokens.items() if v.get("expires_at", 0) < now_evict]
+        for k in expired_keys:
+            _tokens.pop(k, None)
+        # If still over limit, evict oldest 20%
+        if len(_tokens) >= _MAX_IN_MEMORY_TOKENS:
+            keys_to_remove = list(_tokens.keys())[: _MAX_IN_MEMORY_TOKENS // 5]
+            for k in keys_to_remove:
+                _tokens.pop(k, None)
+    _token_key = hashlib.sha256(token.encode()).hexdigest()
+    _tokens[_token_key] = {"client_id": client_id, "expires_at": expires_at}
+
+
+async def _validate_token(token: str) -> str | None:
+    """Validate token. Returns client_id if valid, None otherwise."""
+    now = time.time()
+    # Try Redis first
+    r = await _get_redis()
+    if r:
+        try:
+            key = f"mcp:token:{hashlib.sha256(token.encode()).hexdigest()}"
+            data = await r.hgetall(key)
+            if data and float(data.get("expires_at", 0)) > now:
+                return data["client_id"]
+            return None
+        except Exception:
+            pass
+    # Fallback: in-memory (keys are SHA-256 hashed)
+    _token_key = hashlib.sha256(token.encode()).hexdigest()
+    info = _tokens.get(_token_key)
+    if info and info["expires_at"] > now:
+        return info["client_id"]
+    _tokens.pop(_token_key, None)
+    return None
+
+
+async def handle_token_endpoint(request: Request) -> JSONResponse:
+    """POST /oauth/token — exchange client_credentials for access token."""
+    content_type = request.headers.get("content-type", "")
+
+    try:
+        if "application/json" in content_type:
+            body = await request.json()
+        else:
+            form = await request.form()
+            body = dict(form)
+    except Exception:
+        return JSONResponse(
+            {"error": "invalid_request", "error_description": "Invalid request body"},
+            status_code=400,
+        )
+
+    grant_type = body.get("grant_type")
+    if grant_type != "client_credentials":
+        return JSONResponse(
+            {
+                "error": "unsupported_grant_type",
+                "error_description": "Only client_credentials grant is supported",
+            },
+            status_code=400,
+        )
+
+    client_id = body.get("client_id", "")
+    client_secret = body.get("client_secret", "")
+
+    matched = False
+    for c in _CLIENTS:
+        if (
+            hmac.compare_digest(c["client_id"], str(client_id))
+            and hmac.compare_digest(c["client_secret"], str(client_secret))
+        ):
+            matched = True
+            break
+
+    if not matched:
+        return JSONResponse(
+            {"error": "invalid_client", "error_description": "Invalid client credentials"},
+            status_code=401,
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+    access_token = secrets.token_urlsafe(48)
+    await _store_token(access_token, str(client_id), _TOKEN_TTL)
+
+    return JSONResponse({
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": _TOKEN_TTL,
+    })
+
+
+async def validate_request(request: Request) -> JSONResponse | None:
+    """Validate bearer token. Returns error response or None if valid."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        return JSONResponse(
+            {"error": "unauthorized", "error_description": "Bearer token required"},
+            status_code=401,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = auth_header[7:]
+    client_id = await _validate_token(token)
+    if client_id is None:
+        return JSONResponse(
+            {"error": "invalid_token", "error_description": "Token is invalid or expired"},
+            status_code=401,
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+        )
+    return None
+{% endif %}
+
+{% if config.auth_type == "oauth_introspection" %}
+# ---------------------------------------------------------------------------
+# OAuth2 Token Introspection (RFC 7662)
+# ---------------------------------------------------------------------------
+
+_INTROSPECT_URL: str = "{{ config.oauth_introspection_url | escape_quotes }}"
+_INTROSPECT_CLIENT_ID: str = "{{ config.oauth_introspection_client_id | escape_quotes }}"
+_INTROSPECT_CLIENT_SECRET: str = "{{ config.oauth_introspection_client_secret_decrypted | escape_quotes }}"
+_CACHE_TTL: int = {{ config.oauth_introspection_cache_seconds or 60 }}
+
+# In-memory cache: token_hash → (active, expires_at)
+_introspection_cache: dict[str, tuple[bool, float]] = {}
+_MAX_INTROSPECTION_CACHE = 10000
+
+
+async def _introspect(token: str) -> bool:
+    """Call external introspection endpoint. Returns True if token is active."""
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    now = time.time()
+
+    # Check cache
+    cached = _introspection_cache.get(token_hash)
+    if cached and cached[1] > now:
+        return cached[0]
+
+    try:
+        auth = (
+            httpx.BasicAuth(_INTROSPECT_CLIENT_ID, _INTROSPECT_CLIENT_SECRET)
+            if _INTROSPECT_CLIENT_ID
+            else None
+        )
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                _INTROSPECT_URL,
+                data={"token": token},
+                auth=auth,
+            )
+            if response.status_code == 200:
+                result = response.json()
+                active = bool(result.get("active", False))
+                if _CACHE_TTL > 0:
+                    if len(_introspection_cache) >= _MAX_INTROSPECTION_CACHE:
+                        # Evict oldest entries (first 20%)
+                        keys_to_remove = list(_introspection_cache.keys())[
+                            : _MAX_INTROSPECTION_CACHE // 5
+                        ]
+                        for k in keys_to_remove:
+                            _introspection_cache.pop(k, None)
+                    _introspection_cache[token_hash] = (active, now + _CACHE_TTL)
+                return active
+            logger.warning("Introspection endpoint returned %d", response.status_code)
+            return False
+    except Exception as exc:
+        logger.error("Introspection request failed: %s", exc)
+        return False
+
+
+async def validate_request(request: Request) -> JSONResponse | None:
+    """Validate bearer token via introspection. Returns error response or None."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        return JSONResponse(
+            {"error": "unauthorized", "error_description": "Bearer token required"},
+            status_code=401,
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    token = auth_header[7:]
+    active = await _introspect(token)
+    if not active:
+        return JSONResponse(
+            {"error": "invalid_token", "error_description": "Token is inactive or invalid"},
+            status_code=401,
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+        )
+    return None
+{% endif %}
+
+
+class AuthMiddleware:
+    """ASGI middleware that enforces auth on all non-public endpoints."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope)
+        path = request.url.path
+
+        # Public endpoints — no auth
+        if path in PUBLIC_PATHS:
+            return await self.app(scope, receive, send)
+
+        # All other endpoints require auth
+        error_response = await validate_request(request)
+        if error_response is not None:
+            return await error_response(scope, receive, send)
+
+        return await self.app(scope, receive, send)

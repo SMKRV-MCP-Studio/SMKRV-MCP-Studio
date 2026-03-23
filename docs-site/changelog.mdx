@@ -1,0 +1,217 @@
+---
+title: "Changelog"
+description: "Version history and release notes for SMKRV MCP Studio"
+icon: "clock-rotate-left"
+---
+
+## v0.9.19
+
+### Improved
+
+- **Connection Security** — connections now validate hostnames and IP addresses against internal network ranges before saving. Private addresses, Docker service names, and cloud metadata endpoints are blocked by default. Configurable via `STUDIO_ALLOW_PRIVATE_NETWORKS` for development environments.
+- **Deploy Status Indicator** — the sidebar now shows an amber dot on the Deploy button when tools, resources, prompts, or connections have been changed since the last deploy. The indicator clears automatically after a successful deployment, so you always know whether your MCP server is up to date.
+- **Deploy Error Feedback** — deployment failures now display a toast notification with actionable error details instead of silently changing the status badge.
+- **Token Revocation Safety** — revoking MCP tokens, agent tokens, and OAuth clients now requires confirmation via a dialog, matching the existing pattern for entity deletions. Prevents accidental one-click revocations of production credentials.
+- **MCP Token Resilience** — MCP bearer tokens now automatically sync to Redis on every backend startup, matching the existing behavior for agent tokens and OAuth sessions. Tokens survive Redis restarts without requiring a manual redeploy.
+- **Color Contrast** — raised the contrast ratio of secondary text from 4.18:1 to 5.3:1 on dark backgrounds, meeting WCAG AA accessibility standards across all 300+ UI elements using the muted text color.
+- **Keyboard Accessibility** — added a skip-to-content link for keyboard navigation, ARIA labels on all icon-only buttons, and proper `aria-invalid`/`aria-describedby` associations on form validation errors.
+- **Error Recovery** — all entity list pages (Tools, Connections, Resources, Prompts) now show a Retry button when data loading fails, instead of a dead-end error message.
+- **Import/Export Hardening** — imported entity names are now validated against the same naming rules as the UI. Import payloads with unsupported version numbers are rejected with a clear error. Connection passwords are properly secured during import.
+- **Regex Pattern Safety** — custom prompt guard patterns and the pattern validation endpoint now run with a 2-second timeout, preventing long-running regex patterns from blocking the server.
+- **Entity Name Collision Detection** — if two tools, resources, or prompts normalize to the same identifier (e.g., `my-tool` and `my_tool`), the collision is detected and reported during code generation instead of silently overwriting.
+- **Agent Tool Improvements** — the `import_config` tool now supports a `dry_run` parameter to preview imports before applying. The `get_flow_layout` tool fetches all four entity types in parallel for faster response.
+- **Generated Server Security** — the generated MCP server now requires authentication for metrics endpoints. OAuth token storage uses full-length cryptographic hashes. Credential files use restricted file permissions (owner-read only).
+- **Docker Hardening** — the frontend container now runs with dropped Linux capabilities, no-new-privileges security policy, and resource limits matching other containers. The entrypoint validates Redis credentials and creates a pre-upgrade SQLite backup on every start.
+- **Configuration Flexibility** — all-in-one Docker image now supports `STUDIO_LOG_LEVEL`, `STUDIO_PROMPT_GUARD_ENABLED`, and `STUDIO_PROMPT_GUARD_ML_DOWNLOAD` environment variables for full parity with the multi-container setup.
+- **Test Coverage** — added 72 new backend tests covering code generation for all authentication types, all 45 agent tool functions, and SSRF protection. Total test count increased from 611 to 683.
+
+---
+
+## v0.9.18
+
+### Improved
+
+- **API Documentation Accessibility** — OpenAPI docs (`/api/docs`, `/api/redoc`) are now available in all deployments, protected by network-level authentication rather than application-level restrictions.
+- **Resources Page Metrics** — the Resources page now correctly displays per-entity operational metrics alongside Tools and Prompts.
+
+---
+
+## v0.9.17
+
+### Improved
+
+- **Backend Performance** — centralized Redis connection pool eliminates redundant connections across all backend modules. Password hashing now runs asynchronously, preventing request blocking during authentication.
+- **Security Hardening** — rate limiting uses atomic Redis pipelines for consistent enforcement. The output guard now actively blocks detected injection patterns in MCP responses. Generated server code no longer includes plaintext credentials. Jinja2 transform templates enforce sandbox restrictions on all custom filters.
+- **Frontend Accessibility** — added ARIA labels and full keyboard navigation support across interactive elements. Unsaved changes are now guarded with a confirmation prompt before navigation. Consistent color token usage throughout the interface.
+- **Deployment Reliability** — the Docker entrypoint now validates all required environment variables before starting services. CI/CD pipeline streamlined for Docker Hub publishing.
+
+---
+
+## v0.9.16
+
+### Improved
+
+- **MSSQL Query Reliability** — fixed an issue where tools using `SELECT TOP(:limit)` with a parameterized row limit could produce invalid SQL. The TOP value is now correctly substituted as a literal integer at runtime, with safe clamping to prevent excessive result sets.
+- **Nginx Port 3000 Stability** — resolved an issue where the web UI became inaccessible on port 3000 after the first server configuration save. The generated nginx config now consistently listens on port 3000 alongside port 80.
+- **Agent MCP Proxy Path (Dev)** — fixed agent MCP path stripping in the development Docker Compose setup. Requests to `/agent-mcp/mcp` now correctly reach the FastMCP server.
+- **SQL Parameter Binding Hardening** — all database connectors now use a consistent regex pattern that prevents `::cast` syntax (e.g., `::date`, `::varchar`) from being misinterpreted as a named parameter. Previously only PostgreSQL had this protection.
+- **Input Validation** — added table name validation in schema introspection endpoints and stricter country code sanitization across all authentication paths.
+
+---
+
+## v0.9.15
+
+### Improved
+
+- **Redis Compatibility** — upgraded to Redis 7.2+ in the Docker image, resolving startup failures when upgrading from older versions with incompatible data formats. The entrypoint now detects and safely handles version mismatches.
+- **Agent MCP Availability** — the agent MCP server now returns a proper `503 Service Unavailable` response with a `Retry-After` header when Redis is temporarily down, instead of crashing with an unhandled error.
+- **Real Client IP Detection** — improved IP extraction when running behind Docker NAT or reverse proxies. The nginx configuration now uses `set_real_ip_from` with trusted proxy CIDRs (Docker networks + Cloudflare) to correctly resolve real client addresses.
+
+---
+
+## v0.9.14
+
+### Improved
+
+- **Client IP and GeoIP Accuracy** — resolved an issue where Docker internal IPs appeared instead of real client addresses in token tables and activity logs. Country detection now works consistently across all authentication paths.
+
+---
+
+## v0.9.13
+
+### Improved
+
+- **Overall Stability Improvements** — enhanced data persistence and resilience across container restarts and auto-updates. Metrics, session state, and configuration now survive Docker image updates without manual intervention.
+
+---
+
+## v0.9.12
+
+### Improved
+
+- **Database Connector Reliability** — major improvements in connectivity and stability across all 9 supported database types. Fixes include proper parameter binding, connection lifecycle management with try/finally cleanup, query timeouts for all sync drivers, thread-safe connection singletons, read-only transactions in preview mode, and schema introspection hardening. Covers PostgreSQL, ClickHouse, MySQL, MSSQL, Cassandra, Snowflake, BigQuery, Greenplum, and Supabase.
+
+---
+
+## v0.9.11
+
+### Improved
+
+- **Agent Token Resilience** — agent bearer tokens now survive Redis restarts. Active tokens are automatically re-synced from the database to Redis on every backend startup, preventing unexpected 401 errors when the cache is cleared.
+- **Token Usage Tracking** — the Last Used, Client IP, and Country fields on the Agent Access and MCP Access pages now display real-time data. Previously these fields remained empty because usage was tracked only in Redis and never synced back to the database.
+- **MCP Client Config in Token Dialog** — the token creation dialog now shows the correct MCP endpoint URL (`/agent-mcp/mcp`) and includes the `type: "http"` field required by Claude Code and other MCP clients.
+
+---
+
+## v0.9.10
+
+### New
+
+- **MSSQL Charset Configuration** — configurable character encoding for Microsoft SQL Server connections via the `extra_params` field. Set `{"charset": "cp1251"}` to correctly read Cyrillic text stored in `varchar` columns with `Cyrillic_General_CI_AS` collation. Without this setting, `pymssql` defaults to ISO-8859-1, causing garbled output for non-Latin data.
+- **Automatic Collation Detection** — when testing an MSSQL connection, the server now detects the database collation and displays a hint if Cyrillic encoding is detected but no charset is configured. The hint appears as an amber warning below the test result in the connection form.
+- **Agent MCP Tool List Limit** — the `list_tools` tool in Agent MCP now defaults to returning up to 100 items per request (previously 50), reducing the need for pagination when working with large tool collections.
+
+---
+
+## v0.9.9
+
+### New
+
+- **SSL/HTTPS in All-in-One Docker Image** — the single Docker image now supports automatic HTTPS via Let's Encrypt. Ports 80 and 443 are exposed alongside port 3000. Certbot is bundled for HTTP-01 and DNS-01 challenges. A dedicated nginx reload watcher validates configuration before applying changes. SSL certificates persist across container restarts via the `/etc/letsencrypt` volume.
+- **Automatic Nginx Config Sync on Startup** — the backend now regenerates the nginx configuration from the database on every startup. SSL domains, agent-mcp proxy settings, and port changes are applied automatically — no manual steps needed after `docker run` or `docker compose up`.
+
+---
+
+## v0.9.8
+
+### New
+
+- **MCP Access Page** — dedicated page for managing MCP server access. View endpoint URLs, create and revoke bearer tokens, monitor OAuth status, and configure prompt injection protection — all in one place.
+- **Multiple Bearer Tokens** — create named bearer tokens for the MCP server with optional idle timeout per token. Each token tracks last used time, client IP, and country. Tokens are validated via Redis for high performance. Previously only a single shared token was supported.
+- **Idle Timeout for Bearer Tokens** — tokens can automatically expire after a configurable period of inactivity (30 minutes to 30 days). Useful for temporary access grants.
+- **Dashboard Tool Performance Filtering** — the Tool Performance table now reflects the selected time range (1h, 6h, 24h, 7d, 30d, 90d) for call counts, while showing all-time latency metrics.
+- **Agent Access Management Dashboard** — expanded dashboard section with KPI cards (Active Tokens, OAuth Clients, Total Calls, Success Rate), tool usage bar chart, and direct links to the Agent Access page.
+- **Smart Endpoint Display** — the MCP Access page now shows only the relevant endpoint URL: HTTPS when SSL is enabled, HTTP otherwise. Previously both were shown regardless.
+- **Agent MCP Health Endpoint** — the `/agent-mcp/health` endpoint now includes the MCP endpoint path. Root path (`/agent-mcp/`) returns a helpful redirect hint instead of a cryptic error.
+- **Dashboard Overhaul** — redesigned dashboard with semantic sections (Entities, Operational Metrics, Activity, Tool Analytics, Agent Access). One-request stats API replaces multiple queries. Delta indicators show percentage change vs previous period. Interactive chart zoom with Brush control. P95 reference line on Response Time chart. Dedicated Error Rate chart. Recent Activity feed with last 10 events.
+- **Connection Health Monitoring** — batch health check for all active database connections with Redis caching (60s). Dashboard entity cards show "X/Y healthy" status indicator.
+- **Entity Sparklines** — 7-day activity mini-charts on entity stat cards (Tools, Resources, Prompts, Injections Blocked) showing daily event counts at a glance.
+- **Multi-Architecture Docker Images** — Docker images now support both `linux/amd64` and `linux/arm64` (Apple Silicon, AWS Graviton). Cython compilation runs per-platform inside the Docker build for native `.so` performance on each architecture.
+- **Context7 Integration** — project documentation indexed on [Context7](https://context7.com/smkrv-mcp-studio/smkrv-mcp-studio) for AI-assisted development context.
+
+### Fixed
+
+- **Docker startup crash** — container failed to start without `STUDIO_AGENT_SERVICE_TOKEN` environment variable. Now documented as a required variable alongside `STUDIO_ENCRYPTION_KEY` and `STUDIO_JWT_SECRET`.
+
+### Infrastructure
+
+- **Public Repository** — distribution repository at [github.com/SMKRV-MCP-Studio/SMKRV-MCP-Studio](https://github.com/SMKRV-MCP-Studio/SMKRV-MCP-Studio) with issue templates, security policy, and stale issue automation.
+- **Docker Hub** — full description with quick start guide, supported databases, architecture diagram, and environment variable reference at [hub.docker.com/r/smkrv/smkrv-mcp-studio](https://hub.docker.com/r/smkrv/smkrv-mcp-studio).
+
+---
+
+## v0.9.7
+
+### New
+
+- **Prompt Injection Protection** — all user-created content (tool descriptions, SQL queries, prompt templates, global variables) is now scanned for prompt injection attacks before saving. Blocked attempts are logged in the [Change History](/security#dashboard-visibility) and shown on the Dashboard. Supports multilingual detection across 8 languages. See [Security > Prompt Injection Protection](/security#prompt-injection-protection) for details.
+
+---
+
+## v0.9.6
+
+### New
+
+- **Jinja2 Transform Templates** — each tool now supports an optional post-processing template applied after SQL execution. Use transforms to aggregate, filter, restructure, or format query results before they reach the MCP client. Templates have access to `rows` (query results), `vars` (server-level global variables), and `params` (tool parameters). Includes built-in filters: `tojson`, `groupby`, `sum_attr`, `map_attr`, `unique`.
+- **Global Variables** — define server-wide key-value pairs (string, integer, float, boolean) in Server Settings. Accessible in all transform templates as `{{ vars.key_name }}`. Useful for currency codes, tax rates, thresholds, and other shared constants.
+- **Transform Preview** — the tool builder preview panel now has **Raw** and **Transformed** tabs, letting you compare SQL output with the final transformed result side-by-side.
+- **Transform Editor** — collapsible editor below the SQL editor in the tool builder, with syntax help and snippet templates for common patterns (sum, filter, group, global vars).
+- **Flow Editor J2 Badge** — tool nodes in the visual flow editor display a violet **J2** badge when a transform template is configured.
+- **GeoIP Country Display** — admin panel now shows real client IPs with country flag emojis on bearer tokens, agent tokens, and OAuth clients. Includes GeoLite2-Country database bundled at build time (works air-gapped) with Cloudflare header priority when available.
+- **Dual GeoIP Source** — choose between the P3TERX community mirror (default, no account needed) or official MaxMind API. Set `STUDIO_MAXMIND_LICENSE_KEY` in `.env` to enable MaxMind downloads. Update the database at runtime from the Settings UI.
+- **GeoIP Status Card** — Server Settings now shows the GeoIP database status including source, build date, record count, and staleness warnings with one-click update buttons.
+
+### Fixed
+
+- **Real Client IP** — admin panel previously displayed Docker network IPs (172.x.x.x) instead of actual client IPs. Now correctly extracts real IPs via Cloudflare headers or X-Forwarded-For.
+
+---
+
+## v0.9.5
+
+### New
+
+- **Microsoft SQL Server** — added as the 10th supported database type with full tool/resource code generation, schema introspection, query preview, and connection testing. Uses the `pymssql` driver (TDS protocol, no ODBC required).
+- **90-day metrics retention** — dashboard data now persists across Docker restarts and retains up to 90 days of history via automatic hourly and daily rollups. Time range selector extended with 7d, 30d, and 90d options.
+- **Request Logs page** — new sidebar section showing individual tool execution logs with filtering by tool name, status (success/error), sortable columns, pagination, and URL deep-linking for quick access from dashboard KPIs.
+- **Clickable dashboard KPIs** — metric cards (Total Calls, Avg Response, Error Rate, Active Queries) now link directly to filtered views in Request Logs or Server pages.
+- **Entity metrics badges** — Tool and Resource cards show daily call percentage and error rate badges, loaded from a new per-entity metrics summary endpoint.
+
+### Fixed
+
+- **Dashboard metrics lost on restart** — Redis eviction policy changed to protect aggregate statistics; RDB snapshots added as safety net alongside AOF persistence.
+- **Flow Editor with large datasets** — the visual canvas now uses a multi-column grid layout when there are more than 20 entities, keeping the zoom level usable and all node handles clickable. Previously, 80+ entities in a single column made the canvas scroll-dependent and interactions difficult.
+- **Production deployment fixes** — Docker volume permissions, SSL redirect with non-standard ports, API pagination limits, healthcheck IPv6 resolution, and MSSQL parameter binding in query preview.
+
+---
+
+## v0.9.4 — Initial Public Release
+
+SMKRV MCP Studio is a Docker application for visually building MCP servers from your databases.
+
+### Highlights
+
+- **[10 database types](/user-guide/connections)** — PostgreSQL, MySQL, Microsoft SQL Server, ClickHouse, Cassandra, Greenplum, Supabase, Snowflake, BigQuery, and more
+- **[Tool Builder](/user-guide/tools)** — SQL editor with parameter auto-detection, typed inputs, live preview, and generated code output
+- **[Resource Builder](/user-guide/resources)** — dynamic SQL-backed and static inline MCP resources with URI templates
+- **[Prompt Builder](/user-guide/prompts)** — template editor with argument auto-detection and preview
+- **[Visual Flow Editor](/user-guide/flow-editor)** — drag-and-drop canvas with template blueprints, batch operations, metrics overlay, and import/export
+- **[One-Click Deploy](/user-guide/deployment)** — generate and deploy a complete MCP server with real-time log streaming
+- **[Agent MCP Server](/api-reference/agent-mcp)** — 44 MCP tools for AI agents with temporary tokens and OAuth2 client credentials
+- **[Operational Metrics](/user-guide/queue-management)** — per-tool call counts, response times, p95 latency, time-series charts, and queue monitoring
+- **[Admin Authentication](/security)** — single-admin model with optional TOTP 2FA, recovery codes, and rate limiting
+- **[SSL/TLS](/user-guide/ssl-https)** — automatic certificate provisioning via Let's Encrypt (HTTP-01 and DNS-01 challenges)
+- **Change History** — full audit trail for all entity changes with one-click rollback
+- **[Query Queue](/user-guide/queue-management)** — per-connection concurrency control with configurable limits and timeouts
+- **Encryption at Rest** — all passwords, tokens, and sensitive credentials encrypted in the database
+- **[Container Security](/security)** — non-root users, dropped capabilities, read-only filesystems, network isolation

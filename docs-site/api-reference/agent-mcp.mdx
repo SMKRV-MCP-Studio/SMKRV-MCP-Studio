@@ -1,0 +1,359 @@
+---
+title: "Agent MCP Server"
+description: "AI agent access to SMKRV MCP Studio via 45 MCP tools with tokens and OAuth2"
+icon: "robot"
+---
+
+The Agent MCP Server is a standalone MCP endpoint that lets AI agents programmatically manage SMKRV MCP Studio configuration. Agents can create connections, build tools with Jinja2 transforms, manage global variables, deploy servers, and more — all through the standard MCP protocol.
+
+## Quick Start
+
+### 1. Start Services
+
+```bash
+docker compose up -d
+```
+
+### 2. Set Service Token
+
+Add `STUDIO_AGENT_SERVICE_TOKEN` to your `.env` file:
+
+```env
+STUDIO_AGENT_SERVICE_TOKEN=your-strong-random-secret
+```
+
+### 3. Create an Agent Token
+
+Open the Studio UI, navigate to **Agent Access**, click **Create Token**, enter a name and duration, then copy the generated token.
+
+### 4. Connect Your MCP Client
+
+```json
+{
+  "mcpServers": {
+    "smkrv-studio": {
+      "url": "http://localhost:3000/agent-mcp/",
+      "headers": {
+        "Authorization": "Bearer smkr_..."
+      }
+    }
+  }
+}
+```
+
+## Authentication Methods
+
+### Temporary Tokens
+
+Best for interactive sessions, testing, and short-lived tasks.
+
+| Property | Value |
+|----------|-------|
+| Duration | 15 minutes to 7 days |
+| Format | `smkr_<40-char-random>` |
+| Revocation | Instant via UI or API |
+
+Include the token as a Bearer header:
+
+```
+Authorization: Bearer smkr_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcd
+```
+
+### OAuth2 Client Credentials
+
+Best for automated pipelines, CI/CD, and long-running integrations.
+
+| Property | Value |
+|----------|-------|
+| Idle Timeout | 15 minutes to 24 hours (sliding window) |
+| Grant Types | `client_credentials`, `refresh_token` |
+
+**Step 1 — Create client (one-time):**
+
+Create via the UI (Agent Access > OAuth2 Clients) or API. Save the `client_id` and `client_secret` — the secret is shown only once.
+
+**Step 2 — Exchange credentials for tokens:**
+
+```bash
+curl -X POST http://localhost:3000/agent-mcp/oauth/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials&client_id=smkr_cl_...&client_secret=smkr_cs_..."
+```
+
+**Step 3 — Use access token:**
+
+```json
+{
+  "mcpServers": {
+    "smkrv-studio": {
+      "url": "http://localhost:3000/agent-mcp/",
+      "headers": {
+        "Authorization": "Bearer smkr_at_..."
+      }
+    }
+  }
+}
+```
+
+**Step 4 — Refresh when expired:**
+
+```bash
+curl -X POST http://localhost:3000/agent-mcp/oauth/token \
+  -d "grant_type=refresh_token&refresh_token=smkr_rt_..."
+```
+
+### Comparison
+
+| Feature | Temporary Token | OAuth2 |
+|---------|----------------|--------|
+| Setup | Single step | Create client + exchange |
+| Max lifetime | 7 days | 7 days (idle) |
+| Auto-renewal | No | Yes (refresh token) |
+| Best for | Testing, interactive | CI/CD, automation |
+
+## MCP Client Configuration
+
+<Note>
+  The `"type": "http"` field is **required** for Claude Code and most MCP clients.
+  Without it, the client may fail to connect.
+</Note>
+
+### Claude Code
+
+Add to `~/.claude/mcp.json` or your project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "smkrv-studio": {
+      "type": "http",
+      "url": "http://localhost:3000/agent-mcp/mcp",
+      "headers": {
+        "Authorization": "Bearer smkr_..."
+      }
+    }
+  }
+}
+```
+
+Or use the CLI:
+
+```bash
+claude mcp add --transport http smkrv-studio http://localhost:3000/agent-mcp/mcp
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "smkrv-studio": {
+      "type": "http",
+      "url": "http://localhost:3000/agent-mcp/mcp",
+      "headers": {
+        "Authorization": "Bearer smkr_..."
+      }
+    }
+  }
+}
+```
+
+### Production (with SSL)
+
+```json
+{
+  "mcpServers": {
+    "smkrv-studio": {
+      "type": "http",
+      "url": "https://studio.example.com/agent-mcp/mcp",
+      "headers": {
+        "Authorization": "Bearer smkr_..."
+      }
+    }
+  }
+}
+```
+
+## Tool Reference
+
+All 45 tools return structured JSON. Pagination uses `skip`/`limit` parameters.
+
+### Connections (8 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_connections` | List all database connections |
+| `get_connection` | Get connection details |
+| `create_connection` | Create a new connection |
+| `update_connection` | Update connection fields |
+| `delete_connection` | Delete a connection |
+| `test_connection` | Test database connectivity |
+| `list_tables` | List tables in database schema (returns `{tables, total}`) |
+| `list_columns` | List columns of a table (returns `{columns, total}`) |
+
+### Tools (8 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_tools` | List MCP tools (supports `compact`, `fields` params) |
+| `get_tool` | Get tool with parameters |
+| `create_tool` | Create a tool (with optional Jinja2 transform) |
+| `create_tools_batch` | Create multiple tools in one call (max 50) |
+| `update_tool` | Update a tool (including transform template) |
+| `delete_tool` | Delete a tool |
+| `duplicate_tool` | Create a copy |
+| `preview_sql` | Execute read-only SQL (with optional Jinja2 transform preview) |
+
+### Resources (5 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_resources` | List MCP resources |
+| `get_resource` | Get resource details |
+| `create_resource` | Create a resource |
+| `update_resource` | Update a resource |
+| `delete_resource` | Delete a resource |
+
+### Prompts (5 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_prompts` | List MCP prompts |
+| `get_prompt` | Get prompt with template |
+| `create_prompt` | Create a prompt |
+| `update_prompt` | Update a prompt |
+| `delete_prompt` | Delete a prompt |
+
+### Deploy (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `deploy_server` | Generate code and start MCP server |
+| `stop_server` | Stop the running server |
+| `get_deploy_status` | Check server status |
+
+### Export/Import (2 tools)
+
+| Tool | Description |
+|------|-------------|
+| `export_config` | Export full configuration as JSON |
+| `import_config` | Import configuration (merge mode, supports `dry_run` for preview) |
+
+### History (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `list_history` | List audit trail entries |
+| `get_entity_history` | History for a specific entity |
+| `rollback` | Rollback to a previous snapshot |
+
+### Monitoring (3 tools)
+
+| Tool | Description |
+|------|-------------|
+| `get_metrics_stats` | Per-tool aggregate metrics |
+| `get_metrics_timeseries` | Time-series data |
+| `get_queue_metrics` | Redis queue status |
+
+### Server Config & Global Variables (7 tools)
+
+| Tool | Description |
+|------|-------------|
+| `get_server_config` | Get full MCP server configuration |
+| `update_server_config` | Update server settings (name, transport, auth, CORS, global variables) |
+| `get_global_variables` | Get all server-level global variables |
+| `set_global_variables` | Replace all global variables |
+| `update_global_variables` | Add, update, or delete individual variables |
+| `get_server_health` | Check deployed MCP server health |
+| `get_generated_code` | View auto-generated server Python code |
+
+<Note>
+  Global variables are accessible in all Jinja2 transform templates as `{{ "{{ vars.key_name }}" }}`.
+  Maximum 100 variables. Names must start with a letter or underscore.
+</Note>
+
+### Flow (1 tool)
+
+| Tool | Description |
+|------|-------------|
+| `get_flow_layout` | Complete configuration snapshot |
+
+## Rate Limiting
+
+Each token is rate-limited to a configurable number of requests per minute (default: 120). Configure via `STUDIO_AGENT_RATE_LIMIT` env variable or Studio settings.
+
+## Activity Log
+
+All agent tool calls are recorded in Redis with timestamp, token prefix, tool name, client IP, and success status. View in the UI on the Agent Access page or via `GET /api/v1/agent-activity`.
+
+## Security Best Practices
+
+1. **Use short-lived tokens** for testing (15-30 minutes)
+2. **Rotate OAuth2 client secrets** periodically
+3. **Set a strong service token** (`STUDIO_AGENT_SERVICE_TOKEN`)
+4. **Monitor the activity log** for unexpected patterns
+5. **Use dedicated domains** in production for better isolation
+6. **Revoke tokens immediately** when compromised
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `STUDIO_AGENT_SERVICE_TOKEN` | — | Shared secret for agent-mcp to backend auth |
+| `STUDIO_AGENT_RATE_LIMIT` | `120` | Requests per minute per token |
+| `STUDIO_AGENT_MCP_PORT` | `8090` | Agent MCP server port |
+| `STUDIO_LOG_LEVEL` | `INFO` | Logging level |
+
+## Troubleshooting
+
+### Agent can't connect
+
+- Verify the agent-mcp container is running: `docker compose ps`
+- Check health: `curl http://localhost:3000/agent-mcp/health`
+- Verify `STUDIO_AGENT_SERVICE_TOKEN` is set in both backend and agent-mcp environments
+- Check logs: `docker compose logs agent-mcp`
+
+### Tool calls return 401
+
+- Ensure `STUDIO_AGENT_SERVICE_TOKEN` matches in both the backend and agent-mcp containers
+- Verify the backend is running and healthy: `curl http://localhost:3000/api/health`
+- The backend must use `get_agent_or_admin` (not `get_current_admin`) for all API endpoints that the agent accesses
+
+### Token rejected
+
+- Confirm the token hasn't expired
+- Verify it hasn't been revoked
+- Check rate limits
+
+### OAuth flow fails
+
+- Ensure `client_id` and `client_secret` are correct
+- Check the grant_type is `client_credentials` or `refresh_token`
+- Verify the OAuth client hasn't been revoked
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="REST API" icon="code" href="/api-reference/overview">
+    Full REST API reference for all endpoints
+  </Card>
+  <Card title="Security" icon="shield-halved" href="/security">
+    Authentication, token security, and encryption
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy and connect to the MCP server
+  </Card>
+  <Card title="SSL/HTTPS Setup" icon="lock" href="/user-guide/ssl-https">
+    Enable HTTPS for production Agent MCP access
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Agent MCP environment variables
+  </Card>
+  <Card title="Troubleshooting" icon="bug" href="/troubleshooting">
+    Common issues and debugging tips
+  </Card>
+</CardGroup>

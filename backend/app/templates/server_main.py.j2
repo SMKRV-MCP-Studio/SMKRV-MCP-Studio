@@ -1,0 +1,406 @@
+"""SMKRV MCP Studio — Auto-generated MCP Server Entrypoint.
+
+Server: {{ config.server_name }}
+Transport: {{ config.transport }}
+Generated: {{ now }}
+"""
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+from fastmcp import FastMCP
+from fastmcp.server.providers import FileSystemProvider
+{% if config.transport != "stdio" %}
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+{% endif %}
+
+# Check for stop flag — exit immediately if present
+_stop_flag = Path(__file__).parent / ".stop"
+if _stop_flag.exists():
+    print("Stop flag detected — server will not start.", flush=True)
+    import time
+    time.sleep(5)
+    sys.exit(0)
+
+mcp = FastMCP(
+    name="{{ config.server_name }}",
+)
+
+# Mount all component directories via FileSystemProvider
+tools_dir = Path(__file__).parent / "tools"
+resources_dir = Path(__file__).parent / "resources"
+prompts_dir = Path(__file__).parent / "prompts"
+
+if tools_dir.exists():
+    mcp.add_provider(FileSystemProvider(
+        root=tools_dir,
+        reload={{ "True" if config.transport != "stdio" else "False" }},
+    ))
+
+if resources_dir.exists():
+    mcp.add_provider(FileSystemProvider(
+        root=resources_dir,
+        reload={{ "True" if config.transport != "stdio" else "False" }},
+    ))
+
+if prompts_dir.exists():
+    mcp.add_provider(FileSystemProvider(
+        root=prompts_dir,
+        reload={{ "True" if config.transport != "stdio" else "False" }},
+    ))
+
+{% if config.transport != "stdio" %}
+
+@mcp.custom_route("/", methods=["GET", "HEAD", "POST"])
+async def root_info(request: Request) -> JSONResponse:
+    """Root route — redirect hint to MCP endpoint."""
+    is_post = request.method == "POST"
+    return JSONResponse(
+        {
+            **({"error": "MCP endpoint is at /mcp"} if is_post else {"message": "MCP endpoint is at /mcp"}),
+            "mcp_endpoint": "/mcp",
+            "health": "/health",
+        },
+        status_code=404 if is_post else 200,
+    )
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> JSONResponse:
+    """Health endpoint for monitoring."""
+    tool_files = list(tools_dir.glob("*.py")) if tools_dir.exists() else []
+    resource_files = list(resources_dir.glob("*.py")) if resources_dir.exists() else []
+    prompt_files = list(prompts_dir.glob("*.py")) if prompts_dir.exists() else []
+    response = {
+        "status": "ok",
+        "server_name": "{{ config.server_name }}",
+        "transport": "{{ config.transport }}",
+        "tools_count": len([f for f in tool_files if f.name != "__init__.py"]),
+        "resources_count": len([f for f in resource_files if f.name != "__init__.py"]),
+        "prompts_count": len([f for f in prompt_files if f.name != "__init__.py"]),
+        "mcp_endpoint": "/mcp",
+    }
+    try:
+        from _shared.executor import get_executor
+        executor = await get_executor()
+        response["queue_metrics"] = await executor.get_all_metrics()
+    except Exception:
+        response["queue_metrics"] = {}
+    return JSONResponse(response)
+
+
+@mcp.custom_route("/queue/metrics", methods=["GET"])
+async def queue_metrics(request: Request) -> JSONResponse:
+    """Queue metrics endpoint for monitoring."""
+    try:
+        from _shared.executor import get_executor
+        executor = await get_executor()
+        metrics = await executor.get_all_metrics()
+        return JSONResponse({
+            "redis_connected": executor._redis is not None,
+            "connections": metrics,
+        })
+    except Exception as exc:
+        return JSONResponse({
+            "redis_connected": False,
+            "connections": {},
+            "error": str(exc),
+        })
+
+
+def _compute_p95(hist: dict, total: int) -> str:
+    """Estimate p95 latency bucket from histogram data."""
+    if total == 0:
+        return "N/A"
+    threshold = total * 0.95
+    running = 0
+    for key, label in [
+        ("b_0_10", "<10ms"), ("b_10_50", "10-50ms"), ("b_50_100", "50-100ms"),
+        ("b_100_500", "100-500ms"), ("b_500_1000", "0.5-1s"),
+        ("b_1000_5000", "1-5s"), ("b_5000_inf", ">5s"),
+    ]:
+        running += int(hist.get(key, 0))
+        if running >= threshold:
+            return label
+    return ">5s"
+
+
+@mcp.custom_route("/metrics/stats", methods=["GET"])
+async def metrics_stats(request: Request) -> JSONResponse:
+    """Per-tool aggregate metrics."""
+    try:
+        from _shared.metrics import get_metrics_recorder
+        recorder = await get_metrics_recorder()
+        r = await recorder._get_redis()
+        if r is None:
+            return JSONResponse({"tools": {}})
+
+        tools_data = {}
+        async for key in r.scan_iter("smkrv:tool_stats:*"):
+            tool_name = key.replace("smkrv:tool_stats:", "")
+            stats = await r.hgetall(key)
+            hist = await r.hgetall(f"smkrv:tool_hist:{tool_name}") or {}
+            call_count = int(stats.get("call_count", 0))
+            total_dur = float(stats.get("total_duration_ms", 0))
+            tools_data[tool_name] = {
+                "call_count": call_count,
+                "avg_duration_ms": round(total_dur / call_count, 2) if call_count > 0 else 0,
+                "min_duration_ms": round(float(stats.get("min_duration_ms", 0)), 2),
+                "max_duration_ms": round(float(stats.get("max_duration_ms", 0)), 2),
+                "error_count": int(stats.get("error_count", 0)),
+                "error_rate": round(
+                    int(stats.get("error_count", 0)) / call_count * 100, 1
+                ) if call_count > 0 else 0,
+                "last_called_at": float(stats.get("last_called_at", 0)),
+                "p95_bucket": _compute_p95(hist, call_count),
+                "histogram": {k: int(v) for k, v in hist.items()},
+            }
+
+        return JSONResponse({"tools": tools_data})
+    except Exception as exc:
+        return JSONResponse({"tools": {}, "error": str(exc)})
+
+
+def _parse_ts_hash(data: dict, ts_str: str) -> dict | None:
+    """Parse a time-series Redis hash into a point dict."""
+    if not data:
+        return None
+    calls = int(data.get("calls", 0))
+    if calls == 0:
+        return None
+    total_dur = float(data.get("total_duration_ms", 0))
+    tool_calls = {
+        k.replace("tool:", ""): int(v)
+        for k, v in data.items()
+        if k.startswith("tool:")
+    }
+    return {
+        "timestamp": ts_str,
+        "calls": calls,
+        "errors": int(data.get("errors", 0)),
+        "avg_duration_ms": round(total_dur / calls, 2),
+        "tools": tool_calls,
+    }
+
+
+@mcp.custom_route("/metrics/timeseries", methods=["GET"])
+async def metrics_timeseries(request: Request) -> JSONResponse:
+    """Multi-granularity time-series: minute (<=24h), hourly (<=7d), daily (<=90d)."""
+    try:
+        hours = int(request.query_params.get("hours", "1"))
+        hours = max(1, min(hours, 2160))  # cap at 90 days
+
+        from _shared.metrics import get_metrics_recorder
+        recorder = await get_metrics_recorder()
+        r = await recorder._get_redis()
+        if r is None:
+            return JSONResponse({"points": [], "hours": hours, "granularity": "minute"})
+
+        from datetime import UTC, datetime, timedelta
+        now = datetime.now(UTC)
+        points = []
+
+        if hours <= 24:
+            granularity = "minute"
+            for i in range(hours * 60):
+                t = now - timedelta(minutes=i)
+                key = f"smkrv:ts:{t.strftime('%Y%m%d_%H%M')}"
+                data = await r.hgetall(key)
+                pt = _parse_ts_hash(data, t.strftime("%Y-%m-%dT%H:%M:00Z"))
+                if pt:
+                    points.append(pt)
+        elif hours <= 168:
+            granularity = "hourly"
+            for i in range(hours):
+                t = now - timedelta(hours=i)
+                key = f"smkrv:ts_h:{t.strftime('%Y%m%d_%H')}"
+                data = await r.hgetall(key)
+                pt = _parse_ts_hash(data, t.strftime("%Y-%m-%dT%H:00:00Z"))
+                if pt:
+                    points.append(pt)
+        else:
+            granularity = "daily"
+            days = hours // 24
+            for i in range(days):
+                t = now - timedelta(days=i)
+                key = f"smkrv:ts_d:{t.strftime('%Y%m%d')}"
+                data = await r.hgetall(key)
+                pt = _parse_ts_hash(data, t.strftime("%Y-%m-%dT00:00:00Z"))
+                if pt:
+                    points.append(pt)
+
+        points.reverse()
+        return JSONResponse({"points": points, "hours": hours, "granularity": granularity})
+    except Exception as exc:
+        return JSONResponse({"points": [], "hours": 1, "granularity": "minute", "error": str(exc)})
+
+
+@mcp.custom_route("/metrics/entity-summary", methods=["GET"])
+async def metrics_entity_summary(request: Request) -> JSONResponse:
+    """Per-tool call/error summaries for 1d, 30d, 90d windows."""
+    try:
+        from _shared.metrics import get_metrics_recorder
+        recorder = await get_metrics_recorder()
+        r = await recorder._get_redis()
+        if r is None:
+            return JSONResponse({"tools": {}, "total_calls_1d": 0, "total_calls_30d": 0, "total_calls_90d": 0})
+
+        from datetime import UTC, datetime, timedelta
+        now = datetime.now(UTC)
+
+        # Collect daily keys for 1d, 30d, 90d
+        # For today (1d): use hourly keys of the current day for better accuracy
+        day_data: list[dict] = []
+        for i in range(90):
+            t = now - timedelta(days=i)
+            key = f"smkrv:ts_d:{t.strftime('%Y%m%d')}"
+            data = await r.hgetall(key)
+            day_data.append(data or {})
+
+        # Also grab today's hourly keys (daily rollup might not exist yet for today)
+        today_calls: dict[str, int] = {}
+        today_errors: dict[str, int] = {}
+        for h in range(24):
+            t = now - timedelta(hours=h)
+            if t.date() != now.date():
+                break
+            key = f"smkrv:ts_h:{t.strftime('%Y%m%d_%H')}"
+            data = await r.hgetall(key)
+            if data:
+                for k, v in data.items():
+                    if k.startswith("tool:"):
+                        tn = k.replace("tool:", "")
+                        today_calls[tn] = today_calls.get(tn, 0) + int(v)
+                if int(data.get("errors", 0)) > 0:
+                    # Attribute errors proportionally (best-effort)
+                    for k, v in data.items():
+                        if k.startswith("tool:"):
+                            tn = k.replace("tool:", "")
+                            today_errors[tn] = today_errors.get(tn, 0)
+
+        # Also check minute keys for the current hour
+        current_hour = now.replace(minute=0, second=0, microsecond=0)
+        for m in range(now.minute + 1):
+            t = current_hour + timedelta(minutes=m)
+            key = f"smkrv:ts:{t.strftime('%Y%m%d_%H%M')}"
+            data = await r.hgetall(key)
+            if data:
+                for k, v in data.items():
+                    if k.startswith("tool:"):
+                        tn = k.replace("tool:", "")
+                        today_calls[tn] = today_calls.get(tn, 0) + int(v)
+
+        # Aggregate per-tool data from daily keys
+        tools: dict[str, dict] = {}
+        total_1d = 0
+        total_30d = 0
+        total_90d = 0
+
+        # First, use today's hourly+minute data for 1d
+        for tn, cnt in today_calls.items():
+            if tn not in tools:
+                tools[tn] = {"calls_1d": 0, "calls_30d": 0, "calls_90d": 0, "errors_1d": 0, "errors_30d": 0, "errors_90d": 0}
+            tools[tn]["calls_1d"] += cnt
+            tools[tn]["calls_30d"] += cnt
+            tools[tn]["calls_90d"] += cnt
+            total_1d += cnt
+            total_30d += cnt
+            total_90d += cnt
+
+        # Then process daily keys (skip day 0 = today, already handled above)
+        for i in range(1, 90):
+            data = day_data[i]
+            if not data:
+                continue
+            for k, v in data.items():
+                if k.startswith("tool:"):
+                    tn = k.replace("tool:", "")
+                    cnt = int(v)
+                    if tn not in tools:
+                        tools[tn] = {"calls_1d": 0, "calls_30d": 0, "calls_90d": 0, "errors_1d": 0, "errors_30d": 0, "errors_90d": 0}
+                    tools[tn]["calls_90d"] += cnt
+                    total_90d += cnt
+                    if i < 30:
+                        tools[tn]["calls_30d"] += cnt
+                        total_30d += cnt
+
+            errs = int(data.get("errors", 0))
+            if errs > 0:
+                total_calls_day = int(data.get("calls", 0))
+                # Distribute errors proportionally across tools
+                for k, v in data.items():
+                    if k.startswith("tool:"):
+                        tn = k.replace("tool:", "")
+                        cnt = int(v)
+                        tool_errs = round(errs * cnt / total_calls_day) if total_calls_day > 0 else 0
+                        tools[tn]["errors_90d"] += tool_errs
+                        if i < 30:
+                            tools[tn]["errors_30d"] += tool_errs
+
+        # Compute error rates
+        result_tools = {}
+        for tn, td in tools.items():
+            result_tools[tn] = {
+                **td,
+                "error_rate_1d": round(td["errors_1d"] / td["calls_1d"] * 100, 1) if td["calls_1d"] > 0 else 0,
+                "error_rate_30d": round(td["errors_30d"] / td["calls_30d"] * 100, 1) if td["calls_30d"] > 0 else 0,
+                "error_rate_90d": round(td["errors_90d"] / td["calls_90d"] * 100, 1) if td["calls_90d"] > 0 else 0,
+            }
+
+        return JSONResponse({
+            "tools": result_tools,
+            "total_calls_1d": total_1d,
+            "total_calls_30d": total_30d,
+            "total_calls_90d": total_90d,
+        })
+    except Exception as exc:
+        return JSONResponse({"tools": {}, "total_calls_1d": 0, "total_calls_30d": 0, "total_calls_90d": 0, "error": str(exc)})
+
+
+@mcp.custom_route("/shutdown", methods=["POST"])
+async def shutdown(request: Request) -> JSONResponse:
+    """Shutdown endpoint — triggers graceful server exit."""
+    import asyncio
+
+    async def _exit():
+        await asyncio.sleep(0.5)
+        sys.exit(0)
+
+    asyncio.get_running_loop().create_task(_exit())
+    return JSONResponse({"status": "shutting_down"})
+
+{% if config.auth_type == "oauth_credentials" %}
+
+@mcp.custom_route("/oauth/token", methods=["POST"])
+async def oauth_token(request: Request) -> JSONResponse:
+    """OAuth2 token endpoint — exchange client credentials for access token."""
+    from _shared.auth import handle_token_endpoint
+    return await handle_token_endpoint(request)
+{% endif %}
+{% endif %}
+
+
+if __name__ == "__main__":
+{% if config.auth_type and config.auth_type != "none" and config.transport != "stdio" %}
+    import uvicorn
+    from _shared.auth import AuthMiddleware
+
+    app = mcp.http_app(transport="{{ config.transport or 'http' }}")
+    app = AuthMiddleware(app)
+    uvicorn.run(
+        app,
+        host="{{ config.host or '0.0.0.0' }}",
+        port={{ config.port or 8080 }},
+    )
+{% else %}
+    mcp.run(
+        transport="{{ config.transport or 'http' }}",
+    {% if config.transport != "stdio" %}
+        host="{{ config.host or '0.0.0.0' }}",
+        port={{ config.port or 8080 }},
+    {% endif %}
+    )
+{% endif %}
