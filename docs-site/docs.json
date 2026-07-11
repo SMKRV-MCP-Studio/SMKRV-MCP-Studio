@@ -1,0 +1,114 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "theme": "maple",
+  "name": "SMKRV MCP Studio",
+  "logo": {
+    "light": "/images/logo.svg",
+    "dark": "/images/logo.svg"
+  },
+  "favicon": "/images/logo.png",
+  "colors": {
+    "primary": "#f97316",
+    "light": "#fdba74",
+    "dark": "#ea580c"
+  },
+  "modeToggle": {
+    "default": "dark"
+  },
+  "metadata": {
+    "og:site_name": "SMKRV MCP Studio Docs"
+  },
+  "topbarLinks": [
+    {
+      "name": "Website",
+      "url": "https://smcps.net"
+    }
+  ],
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Get Started",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "getting-started",
+              "configuration"
+            ]
+          },
+          {
+            "group": "Security & Operations",
+            "pages": [
+              "security",
+              "troubleshooting"
+            ]
+          },
+          {
+            "group": "Legal",
+            "pages": [
+              "license",
+              "tech-stack"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "User Guide",
+        "groups": [
+          {
+            "group": "MCP Entities",
+            "pages": [
+              "user-guide/connections",
+              "user-guide/tools",
+              "user-guide/resources",
+              "user-guide/prompts"
+            ]
+          },
+          {
+            "group": "Visual Editor",
+            "pages": [
+              "user-guide/flow-editor"
+            ]
+          },
+          {
+            "group": "Deployment",
+            "pages": [
+              "user-guide/deployment",
+              "user-guide/ssl-https",
+              "user-guide/queue-management"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "REST API",
+            "pages": [
+              "api-reference/overview"
+            ]
+          },
+          {
+            "group": "Agent MCP",
+            "pages": [
+              "api-reference/agent-mcp"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Changelog",
+        "groups": [
+          {
+            "group": "Changelog",
+            "pages": [
+              "changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

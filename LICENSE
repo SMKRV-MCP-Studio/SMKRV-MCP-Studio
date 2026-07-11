@@ -1,0 +1,403 @@
+SMKRV MCP Studio — Proprietary Software License Agreement
+==========================================================
+
+Version 1.0, March 2026
+
+Copyright (c) 2025–2026 Sergey Makarov. All rights reserved.
+
+Project:  SMKRV MCP Studio
+Website:  https://smcps.net/
+Docs:     https://docs.smcps.net/
+Source:   https://github.com/SMKRV-MCP-Studio/SMKRV-MCP-Studio
+Docker:   smkrv/smkrv-mcp-studio
+
+
+1.  DEFINITIONS
+
+    "Software" means the SMKRV MCP Studio software, comprising all source
+    code (whether in clear-text or obfuscated form), object code, compiled
+    binaries, Docker images, container configurations, documentation,
+    templates, generated code, configuration files, and any other materials
+    authored by the Licensor and distributed through the channels listed
+    above or any other medium.
+
+    "Obfuscated Components" means those portions of the Software that have
+    been intentionally obfuscated, compiled, minified, or otherwise
+    rendered not readily human-readable by the Licensor for the purpose of
+    intellectual-property protection.  These portions are identified at the
+    Licensor's sole discretion.
+
+    "Third-Party Components" means open-source or third-party libraries,
+    frameworks, packages, and dependencies that are included in, bundled
+    with, or required by the Software, each of which is governed
+    exclusively by its own license (see Section 12).
+
+    "Licensor" means Sergey Makarov, the sole author and copyright holder.
+
+    "You" (or "Your") means the natural person or legal entity agreeing
+    to and exercising the rights granted under this License.
+
+    "Your Company" means any legal entity, sole proprietorship, or other
+    kind of organization that You work for, plus all its Affiliates.
+
+    "Affiliates" means any organizations that an organization has Control
+    over, is under the Control of, or is under common Control with.
+
+    "Control" means ownership of substantially all the assets of an
+    entity, or the power to direct its management and policies by vote,
+    contract, or otherwise.  Control can be direct or indirect.
+
+    "Commercial Use" means any use of the Software that is intended for or
+    directed toward commercial advantage or monetary compensation,
+    including but not limited to: (a) selling, licensing, sublicensing, or
+    distributing the Software or derivative works thereof for a fee;
+    (b) providing hosted, managed, or SaaS services based in whole or in
+    part on the Software to third parties for compensation; (c) deploying
+    the Software to generate revenue, whether directly or indirectly;
+    (d) incorporating the Software or any part thereof into a commercially
+    offered product or service.
+
+    "Non-Commercial Use" means any use of the Software that does not
+    constitute Commercial Use, including personal projects, academic
+    research, educational activities, internal evaluation, non-profit
+    organizational use, and contributions to non-revenue-generating
+    community projects.  Use by any charitable organization, educational
+    institution, public research organization, public safety or health
+    organization, environmental protection organization, or government
+    institution is Non-Commercial Use regardless of the source of
+    funding or obligations resulting from such funding.
+
+
+2.  GRANT OF LICENSE — NON-COMMERCIAL USE
+
+    Subject to the terms and conditions of this License, the Licensor
+    hereby grants You a worldwide, royalty-free, non-exclusive,
+    non-transferable, non-sublicensable, revocable license to:
+
+    (a) download, install, and run the Software;
+    (b) use the Software for any Non-Commercial Use without limitation;
+    (c) make copies of the Software in unmodified form for backup or
+        archival purposes;
+    (d) create derivative works based on the non-obfuscated portions of
+        the Software for Your own Non-Commercial Use;
+    (e) publicly display or demonstrate the Software in a non-commercial
+        context, provided that attribution to the Licensor is maintained.
+
+    This grant is subject to the restrictions in Section 3 and may be
+    terminated in accordance with Section 10.
+
+
+3.  RESTRICTIONS
+
+    You may NOT, without the prior express written permission of the
+    Licensor:
+
+    (a) Use the Software for any Commercial Use (see Section 4);
+
+    (b) Reverse engineer, decompile, disassemble, decrypt, de-obfuscate,
+        or otherwise attempt to derive the source code, algorithms,
+        data structures, or trade secrets contained in the Obfuscated
+        Components, except and only to the limited extent that such
+        activity is expressly permitted by applicable mandatory law
+        (such as EU Directive 2009/24/EC, Article 6, for
+        interoperability purposes only) and cannot be waived by
+        contract;
+
+    (c) Remove, alter, conceal, or obscure any copyright notice,
+        trademark, attribution, proprietary legend, or this License text
+        contained in or affixed to the Software;
+
+    (d) Distribute, sublicense, sell, lease, rent, pledge, or otherwise
+        transfer the Software or any portion thereof to any third party,
+        except as expressly permitted by this License or as required by
+        the terms of Third-Party Components;
+
+    (e) Use the Software, in whole or in part, to build, train, or
+        improve a competing or substantially similar product or service;
+
+    (f) Circumvent, disable, or interfere with any technical protection
+        measures, license-key mechanisms, or access controls embedded in
+        the Software;
+
+    (g) Represent or imply that the Licensor endorses or is affiliated
+        with Your products, services, or activities, unless the Licensor
+        has granted written permission to do so;
+
+    (h) Use the Software in any manner that violates applicable local,
+        national, or international law or regulation.
+
+
+4.  COMMERCIAL LICENSING
+
+    Any Commercial Use of the Software requires a separate written
+    commercial license agreement with the Licensor.  Unauthorized
+    Commercial Use constitutes a material breach of this License and an
+    infringement of the Licensor's intellectual-property rights.
+
+    Commercial license inquiries:
+        Website:  https://smcps.net/
+        Email:    ms@smcps.net
+
+
+5.  PATENT LICENSE AND PATENT DEFENSE
+
+    5.1  The Licensor grants You a patent license for the Software that
+         covers patent claims the Licensor can license, or becomes able
+         to license, that You would infringe by using the Software
+         solely for Non-Commercial Use in accordance with this License.
+
+    5.2  If You or Your Company make any written claim that the Software
+         infringes or contributes to infringement of any patent, Your
+         patent license for the Software granted under Section 5.1 ends
+         immediately.  If Your Company makes such a claim, Your patent
+         license ends immediately for all work on behalf of Your
+         Company.
+
+
+6.  INTELLECTUAL PROPERTY
+
+    6.1  The Software, including all Obfuscated Components, and all
+         copies, modifications, and derivative works thereof, are and
+         shall remain the exclusive property of the Licensor.  This
+         License does not convey to You any ownership interest in or to
+         the Software.
+
+    6.2  All rights not expressly granted herein are reserved by the
+         Licensor.  Nothing in this License shall be construed as
+         granting, by implication, estoppel, or otherwise, any license
+         or right to any trademark, service mark, trade name, or trade
+         secret of the Licensor (patent rights are addressed solely in
+         Section 5).
+
+    6.3  If You provide the Licensor with any feedback, suggestions,
+         or ideas regarding the Software ("Feedback"), You hereby
+         assign to the Licensor all right, title, and interest in such
+         Feedback without restriction and without obligation of
+         compensation.
+
+
+7.  FAIR USE
+
+    You may have "fair use", "fair dealing", or other similar rights
+    for the Software under applicable law.  Nothing in this License is
+    intended to limit or restrict those rights.
+
+
+8.  GITHUB PUBLIC REPOSITORY — ADDITIONAL TERMS
+
+    Where the Software is made available through a public repository on
+    GitHub.com, You acknowledge that:
+
+    (a) GitHub's Terms of Service (Section D.5) grant each GitHub user
+        a non-exclusive, worldwide license to use, display, and perform
+        the Software through GitHub's service, and to fork and reproduce
+        the Software solely as permitted by GitHub's functionality.
+        These implicit rights are limited to interactions within the
+        GitHub platform and do not extend to any use, distribution, or
+        exploitation of the Software outside of GitHub.
+
+    (b) Forking the repository on GitHub does not grant any additional
+        license rights beyond those stated in this License and
+        GitHub's Terms of Service Section D.5.
+
+    (c) All restrictions in Sections 3 and 4 remain in full force and
+        effect, including the prohibition on reverse engineering of
+        Obfuscated Components and the restriction on Commercial Use.
+
+    (d) The inclusion of certain source files in obfuscated form within
+        a public repository is an intentional intellectual-property
+        protection measure.  GitHub's Terms of Service permit
+        repositories to contain proprietary code under custom licenses.
+
+
+9.  DOCKER IMAGES — ADDITIONAL TERMS
+
+    Docker images published under the name "smkrv/smkrv-mcp-studio" on
+    Docker Hub or any other container registry are distributed under the
+    terms of this License.  Pulling, running, or deploying such images
+    constitutes acceptance of this License.  The same restrictions on
+    Commercial Use and reverse engineering apply to container images and
+    their contents.
+
+
+10. TERMINATION
+
+    10.1 This License is effective until terminated.
+
+    10.2 The Licensor may terminate this License at any time, with or
+         without cause, by providing written notice (including
+         electronic notice).
+
+    10.3 CURE PERIOD.  The first time You are notified in writing that
+         You have violated any of these terms, or done anything with
+         the Software not covered by Your license grant, Your license
+         can nonetheless continue if You come into full compliance with
+         these terms and take practical steps to correct past
+         violations within thirty (30) consecutive calendar days of
+         receiving such notice.  If You fail to cure the violation
+         within the cure period, all Your licenses under this License
+         end immediately.
+
+    10.4 IMMEDIATE TERMINATION.  Notwithstanding Section 10.3, the
+         following violations result in immediate termination without
+         a cure period: (a) unauthorized Commercial Use; (b) reverse
+         engineering of Obfuscated Components; (c) circumvention of
+         technical protection measures; or (d) any repeated violation
+         after a prior cure period has been exercised.
+
+    10.5 Upon termination, You must immediately cease all use of the
+         Software and destroy all copies (including derivative works
+         and backups) in Your possession or control.
+
+    10.6 Sections 3 (Restrictions), 5 (Patent License and Patent
+         Defense), 6 (Intellectual Property), 7 (Fair Use), 9 (Docker
+         Images), 11 (Disclaimer of Warranties), 13 (Limitation of
+         Liability), and 15 (Severability) survive termination of this
+         License.
+
+
+11. DISCLAIMER OF WARRANTIES
+
+    THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT
+    WARRANTY OF ANY KIND, EXPRESS, IMPLIED, OR STATUTORY, INCLUDING BUT
+    NOT LIMITED TO THE IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR
+    A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY, QUIET
+    ENJOYMENT, AND ABSENCE OF DEFECTS (WHETHER LATENT OR PATENT).
+
+    THE LICENSOR MAKES NO WARRANTY THAT THE SOFTWARE WILL: (A) MEET
+    YOUR REQUIREMENTS; (B) OPERATE WITHOUT INTERRUPTION OR ERROR;
+    (C) BE COMPATIBLE WITH ANY THIRD-PARTY SOFTWARE, HARDWARE, OR
+    SERVICE; (D) BE SECURE OR FREE FROM VULNERABILITIES; OR (E) PRODUCE
+    ACCURATE OR RELIABLE RESULTS.
+
+    YOU ASSUME THE ENTIRE RISK AS TO THE QUALITY, PERFORMANCE, AND
+    SUITABILITY OF THE SOFTWARE.  SHOULD THE SOFTWARE PROVE DEFECTIVE,
+    YOU (AND NOT THE LICENSOR) ASSUME THE ENTIRE COST OF ALL NECESSARY
+    SERVICING, REPAIR, OR CORRECTION.
+
+    SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OF IMPLIED WARRANTIES.
+    IN SUCH JURISDICTIONS, THE ABOVE EXCLUSIONS APPLY TO THE FULLEST
+    EXTENT PERMITTED BY APPLICABLE LAW.
+
+
+12. THIRD-PARTY COMPONENTS AND OPEN-SOURCE ACKNOWLEDGMENT
+
+    The Software incorporates Third-Party Components distributed under
+    their own open-source or permissive licenses, including but not
+    limited to:
+
+        - FastAPI (MIT License)
+        - Uvicorn (BSD License)
+        - SQLAlchemy (MIT License)
+        - Pydantic (MIT License)
+        - Jinja2 (BSD License)
+        - React (MIT License)
+        - Vite (MIT License)
+        - Tailwind CSS (MIT License)
+        - Zustand (MIT License)
+        - React Flow / @xyflow/react (MIT License)
+        - Radix UI components (MIT License)
+        - Recharts (MIT License)
+        - Monaco Editor (MIT License)
+        - Zod (MIT License)
+        - Redis (BSD License)
+        - FastMCP (MIT License)
+        - Alembic (MIT License)
+        - Various Python and JavaScript libraries
+
+    Nothing in this License is intended to limit, restrict, or
+    otherwise affect the rights You have under the licenses of those
+    Third-Party Components.  To the extent there is any conflict
+    between this License and the license of a Third-Party Component
+    with respect to that component, the Third-Party Component's own
+    license shall prevail for that component only.
+
+    The Licensor's proprietary rights under this License apply
+    exclusively to original code, templates, configurations,
+    documentation, and other materials authored by the Licensor, and
+    do not extend to Third-Party Components.
+
+
+13. LIMITATION OF LIABILITY
+
+    TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW:
+
+    (a) IN NO EVENT SHALL THE LICENSOR BE LIABLE TO YOU OR ANY THIRD
+        PARTY FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL,
+        EXEMPLARY, OR PUNITIVE DAMAGES OF ANY KIND, INCLUDING BUT NOT
+        LIMITED TO DAMAGES FOR LOSS OF PROFITS, REVENUE, DATA, USE,
+        GOODWILL, BUSINESS OPPORTUNITY, OR OTHER INTANGIBLE LOSSES,
+        ARISING OUT OF OR IN CONNECTION WITH THIS LICENSE OR THE USE
+        OR INABILITY TO USE THE SOFTWARE, REGARDLESS OF THE CAUSE OF
+        ACTION OR THE THEORY OF LIABILITY (WHETHER IN CONTRACT, TORT,
+        NEGLIGENCE, STRICT LIABILITY, OR OTHERWISE), EVEN IF THE
+        LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+
+    (b) IN NO EVENT SHALL THE LICENSOR'S TOTAL AGGREGATE LIABILITY TO
+        YOU FOR ALL CLAIMS ARISING OUT OF OR RELATING TO THIS LICENSE
+        OR THE SOFTWARE EXCEED THE AMOUNT, IF ANY, ACTUALLY PAID BY
+        YOU TO THE LICENSOR FOR THE SOFTWARE DURING THE TWELVE (12)
+        MONTHS PRECEDING THE CLAIM.
+
+    (c) YOU AGREE TO INDEMNIFY, DEFEND, AND HOLD HARMLESS THE LICENSOR
+        FROM AND AGAINST ANY AND ALL CLAIMS, LIABILITIES, DAMAGES,
+        LOSSES, COSTS, AND EXPENSES (INCLUDING REASONABLE ATTORNEYS'
+        FEES) ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE
+        SOFTWARE, YOUR BREACH OF THIS LICENSE, OR YOUR VIOLATION OF
+        ANY APPLICABLE LAW.
+
+    SOME JURISDICTIONS DO NOT ALLOW THE EXCLUSION OR LIMITATION OF
+    CERTAIN DAMAGES.  IN SUCH JURISDICTIONS, THE ABOVE LIMITATIONS
+    APPLY TO THE FULLEST EXTENT PERMITTED BY APPLICABLE LAW.
+
+
+14. GOVERNING LAW AND DISPUTE RESOLUTION
+
+    This License shall be governed by and construed in accordance with
+    applicable law, without regard to conflict-of-law principles.  Any
+    dispute arising out of or relating to this License shall be resolved
+    through good-faith negotiation between the parties.  If negotiation
+    fails, the parties agree to submit to the exclusive jurisdiction of
+    the courts of competent jurisdiction as determined by the Licensor's
+    domicile at the time of the dispute.
+
+
+15. SEVERABILITY
+
+    If any provision of this License is held to be invalid, illegal, or
+    unenforceable by a court of competent jurisdiction, such provision
+    shall be modified to the minimum extent necessary to make it valid,
+    legal, and enforceable, or if such modification is not possible, it
+    shall be severed from this License.  The invalidity or
+    unenforceability of any provision shall not affect the validity or
+    enforceability of the remaining provisions, which shall continue in
+    full force and effect.
+
+
+16. WAIVER
+
+    No failure or delay by the Licensor in exercising any right, power,
+    or remedy under this License shall operate as a waiver thereof, nor
+    shall any single or partial exercise of any right, power, or remedy
+    preclude any other or further exercise thereof.
+
+
+17. ENTIRE AGREEMENT AND AMENDMENTS
+
+    This License constitutes the entire agreement between You and the
+    Licensor with respect to the Software and supersedes all prior or
+    contemporaneous understandings, communications, negotiations, and
+    agreements, whether written or oral.  The Licensor reserves the
+    right to modify this License at any time.  Continued use of the
+    Software after such modification constitutes Your acceptance of the
+    modified terms.
+
+
+18. CONTACT
+
+    For commercial licensing inquiries, permissions, questions, or
+    notices under this License, contact:
+
+        Sergey Makarov
+        Website:  https://smcps.net/
+        Email:    ms@smcps.net

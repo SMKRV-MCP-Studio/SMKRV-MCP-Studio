@@ -1,0 +1,37 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What feature would you like?
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: How would you use this feature?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - UI / Dashboard
+        - Tool Builder
+        - Resource Builder
+        - Prompt Builder
+        - Database Connections
+        - MCP Server
+        - Agent MCP
+        - Docker / Deployment
+        - API
+        - Other
+    validations:
+      required: true

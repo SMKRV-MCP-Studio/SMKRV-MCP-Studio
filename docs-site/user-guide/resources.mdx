@@ -1,0 +1,91 @@
+---
+title: "Resources"
+description: "Create dynamic SQL-backed and static MCP resources with URI templates"
+icon: "file-code"
+---
+
+Resources expose data to MCP clients as readable content identified by URIs. SMKRV MCP Studio supports two types: dynamic (SQL-backed) and static (inline content).
+
+## Resource Types
+
+### Dynamic Resources
+
+Dynamic resources execute a SQL query against a database connection and return the results. They use URI templates with parameters:
+
+**Example URI template:**
+```
+/resource/users/{user_id}
+```
+
+**Example SQL:**
+```sql
+SELECT id, name, email
+FROM users
+WHERE id = :user_id
+```
+
+### Static Resources
+
+Static resources serve fixed inline content without a database connection. Use them for configuration data or reference documents.
+
+## URI Template Parameters
+
+Parameters in URI templates use `{param}` syntax and are auto-detected:
+
+| URI Template | Detected Parameters |
+|--------------|---------------------|
+| `/resource/users/{user_id}` | `user_id` |
+| `/resource/orders/{status}/{year}` | `status`, `year` |
+| `/resource/config` | (none) |
+
+## MIME Types
+
+| MIME Type | Use Case |
+|-----------|----------|
+| `application/json` | JSON data (default) |
+| `text/plain` | Plain text |
+| `text/csv` | CSV tabular data |
+| `text/html` | HTML content |
+| `application/xml` | XML data |
+
+## Managing Resources
+
+### Creating a Resource
+
+1. Navigate to **Resources** in the sidebar
+2. Click **New Resource**
+3. Choose resource type (dynamic or static)
+4. Fill in the URI template and content or SQL query
+5. Configure parameters and MIME type
+6. Select a connection (dynamic only)
+7. Click **Save**
+
+### Editing and Deleting
+
+- **Edit**: Click a resource card to open the editor
+- **Delete**: Click the delete icon and confirm
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Connections" icon="database" href="/user-guide/connections">
+    Create the database connections that dynamic resources query against
+  </Card>
+  <Card title="Tools" icon="wrench" href="/user-guide/tools">
+    Build SQL-backed tools with typed parameters
+  </Card>
+  <Card title="Prompts" icon="message" href="/user-guide/prompts">
+    Design reusable prompt templates
+  </Card>
+  <Card title="Flow Editor" icon="diagram-project" href="/user-guide/flow-editor">
+    Manage resources visually on the drag-and-drop canvas
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy your resources as part of the MCP server
+  </Card>
+  <Card title="REST API" icon="code" href="/api-reference/overview">
+    Resource CRUD endpoints in the REST API
+  </Card>
+</CardGroup>

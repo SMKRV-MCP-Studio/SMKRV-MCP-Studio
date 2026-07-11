@@ -1,0 +1,149 @@
+---
+title: "Flow Editor"
+description: "Visual drag-and-drop canvas for building and managing MCP server configurations"
+icon: "diagram-project"
+---
+
+The flow editor is a fully interactive canvas for building and managing your MCP server configuration. It visualizes connections, tools, resources, and prompts as draggable nodes with edges showing their relationships.
+
+Open the flow editor from **Flow** in the sidebar.
+
+## Layout
+
+| Panel | Width | Purpose |
+|-------|-------|---------|
+| **Palette** (left) | 176px | Drag-and-drop entity creation + blueprints |
+| **Canvas** (center) | Flexible | Interactive node graph |
+| **Sidebar** (right) | 360px | Inline editing of selected node |
+
+## Node Types
+
+| Node Type | Color | Icon |
+|-----------|-------|------|
+| ConnectionNode | Orange | Database |
+| ToolNode | Emerald | Wrench |
+| ResourceNode | Purple | FileBox |
+| PromptNode | Amber | MessageSquare |
+| ServerNode | Gray | Server |
+
+## Interacting with the Canvas
+
+### Navigation
+
+- **Pan**: Click and drag on empty canvas space
+- **Zoom**: Scroll wheel or pinch gesture
+- **Fit to view**: Automatic on first load
+
+### Selection
+
+- **Single select**: Click a node to open the inline editor
+- **Multi-select**: Hold Shift and drag a selection box, or Shift+click individual nodes
+- **Deselect**: Click on empty canvas space
+
+### Quick Actions on Nodes
+
+- **Toggle switch**: Enable/disable the entity directly on the node
+- **Trash icon**: Delete the entity (with confirmation)
+
+## Drag-and-Drop Entity Creation
+
+1. Drag a **Tool**, **Resource**, or **Prompt** from the palette onto the canvas
+2. The entity is created with default values
+3. **Tools** dropped near a connection node are automatically linked to that connection
+4. The new node is selected, opening the sidebar editor
+
+## Template Blueprints
+
+Blueprints create multiple related entities at once:
+
+1. Click **Templates** in the palette's Blueprints section
+2. Select a blueprint
+3. Fill in parameters (table name, connection)
+4. Preview the entities that will be created
+5. Click **Create**
+
+### Built-in Blueprints
+
+| Blueprint | Creates | Description |
+|-----------|---------|-------------|
+| **CRUD Set** | 4 tools | `get_{table}_all`, `get_{table}_by_id`, `insert_{table}`, `delete_{table}` |
+| **REST Resource Set** | 1 resource + 1 tool | `{table}_list` resource + `get_{table}_by_id` tool |
+
+## Visual Connection Drawing
+
+Draw edges directly on the canvas to set relationships:
+
+- **Connection -> Tool**: Sets the tool's `connection_id`
+- **Connection -> Resource**: Sets the resource's `connection_id`
+- **Entity -> Server**: Enables the entity
+
+Press **Backspace** to delete selected edges.
+
+## Filtering and Search
+
+- **Search**: Type to filter nodes by name (non-matching nodes fade)
+- **Type filter**: Show only Tools, Resources, or Prompts
+- **Status filter**: Show only Enabled or Disabled entities
+- **Clear**: Reset all filters
+
+## Group Operations
+
+When multiple nodes are selected, a batch action bar appears:
+- **Enable All** / **Disable All** / **Delete All** / **Clear Selection**
+
+## Live Metrics Overlay
+
+Toggle the **Metrics** button to show performance data on Tool nodes:
+
+- **Call count**, **Avg duration**, **Error rate**
+- Color coded: Green (good), Amber (slow), Red (errors)
+
+## Visual Indicators
+
+### Transform Badge
+
+Tool nodes display a violet **J2** badge when a Jinja2 transform template is configured. This helps identify tools with post-processing at a glance on the canvas.
+
+### Validation Indicators
+
+| Badge Color | Examples |
+|-------------|----------|
+| **Red** | Empty SQL query, missing connection |
+| **Amber** | Inactive connection linked to enabled entity |
+
+## Import / Export
+
+Export and import your entire project configuration via the toolbar menu:
+
+- **Export**: Downloads a JSON file (passwords excluded)
+- **Import**: Upload a previously exported `.json` file (duplicates are skipped, connections imported without passwords)
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **Ctrl+S / Cmd+S** | Save current sidebar edits |
+| **Backspace** | Delete selected edges |
+| **Shift+Drag** | Box select multiple nodes |
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Connections" icon="database" href="/user-guide/connections">
+    Create and manage database connections
+  </Card>
+  <Card title="Tools" icon="wrench" href="/user-guide/tools">
+    Build SQL-backed tools with typed parameters
+  </Card>
+  <Card title="Resources" icon="file-code" href="/user-guide/resources">
+    Create dynamic and static MCP resources
+  </Card>
+  <Card title="Prompts" icon="message" href="/user-guide/prompts">
+    Design reusable prompt templates
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy your configuration as a running MCP server
+  </Card>
+</CardGroup>

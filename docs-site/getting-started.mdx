@@ -1,0 +1,131 @@
+---
+title: "Getting Started"
+description: "Install and run SMKRV MCP Studio with Docker in minutes"
+icon: "play"
+---
+
+## System Requirements
+
+### Hardware
+
+|  | Minimum | Recommended |
+|--|---------|-------------|
+| **CPU** | 2 cores | 4+ cores |
+| **RAM** | 2 GB | 4 GB |
+| **Disk** | 4 GB | 10 GB |
+| **Arch** | x86_64 (amd64) or ARM64 | - |
+
+<Info>
+  **Minimum** is enough to run the application with 1-2 database connections under light load.
+  **Recommended** provides comfortable headroom for multiple connections and concurrent queries. The image runs the L0 regex prompt-injection guard out of the box; the L1 ML layer (DeBERTa ONNX, ~180 MB) is included but opt-in via `STUDIO_PROMPT_GUARD_ML_DOWNLOAD=true` - see [Security](/security).
+</Info>
+
+For high-load scenarios (10+ connections, heavy concurrent queries):
+- 4-8 CPU cores, 8 GB RAM, 20 GB disk
+
+### Software
+
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| Docker | 24+ | Container runtime |
+| Docker Compose | v2+ | Multi-container orchestration |
+
+## Quick Start
+
+<Steps>
+  <Step title="Pull the image">
+    ```bash
+    docker pull smkrv/smkrv-mcp-studio:latest
+    ```
+  </Step>
+  <Step title="Generate secrets">
+    ```bash
+    export STUDIO_ENCRYPTION_KEY=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    export STUDIO_JWT_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+    export STUDIO_AGENT_SERVICE_TOKEN=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
+    export REDIS_PASSWORD=$(openssl rand -base64 32)
+    ```
+
+    See [Configuration Reference](/configuration) for all available variables.
+  </Step>
+  <Step title="Run the container">
+    ```bash
+    docker run -d \
+      --name mcp-studio \
+      -p 3000:3000 \
+      -p 80:80 \
+      -p 443:443 \
+      -e STUDIO_ENCRYPTION_KEY=$STUDIO_ENCRYPTION_KEY \
+      -e STUDIO_JWT_SECRET=$STUDIO_JWT_SECRET \
+      -e STUDIO_AGENT_SERVICE_TOKEN=$STUDIO_AGENT_SERVICE_TOKEN \
+      -e REDIS_PASSWORD=$REDIS_PASSWORD \
+      -v mcp-studio-data:/app/data \
+      -v mcp-studio-generated:/shared/generated \
+      -v mcp-studio-certs:/etc/letsencrypt \
+      -v mcp-studio-redis:/data/redis \
+      smkrv/smkrv-mcp-studio:latest
+    ```
+
+    Ports 80/443 are optional - only needed for SSL/HTTPS via Let's Encrypt. Without SSL, port 3000 is sufficient.
+  </Step>
+  <Step title="Verify it started">
+    ```bash
+    curl http://localhost:3000/api/health
+    # Expected: {"status":"ok","version":"..."}
+    ```
+  </Step>
+</Steps>
+
+The UI is available at `http://localhost:3000`.
+
+## First-Run Setup
+
+On first visit, the app detects that no admin account exists and shows the **Setup** screen:
+
+1. **Create Admin Account** - enter a username and password (minimum 8 characters). This is the only admin account for the installation.
+
+2. **Login** - after setup, you are automatically logged in and redirected to the Dashboard.
+
+3. **(Optional) Enable 2FA** - go to Settings, open the 2FA section, and scan the QR code with an authenticator app (Google Authenticator, Authy, 1Password, etc.). Save your recovery codes.
+
+## First Steps
+
+<Steps>
+  <Step title="Create a Connection">
+    Go to the [Connections](/user-guide/connections) page, click **New Connection**, select your database type, enter credentials, and test the connection.
+  </Step>
+  <Step title="Build a Tool">
+    Go to the [Tools](/user-guide/tools) page, click **New Tool**, select your connection, write a SQL query with parameters (e.g., `SELECT * FROM users WHERE id = :user_id`), and save.
+  </Step>
+  <Step title="Build Resources and Prompts">
+    Optionally create [Resources](/user-guide/resources) (data endpoints) and [Prompts](/user-guide/prompts) (template messages) in the same way.
+  </Step>
+  <Step title="Deploy">
+    Go to the Server page and click **Deploy**. See [Deployment](/user-guide/deployment) for details and MCP client configuration.
+  </Step>
+  <Step title="Connect a Client">
+    Go to Server > Connect tab to get the MCP endpoint URL and configuration snippets for Claude Desktop, Cursor, or Claude Code.
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Open `http://localhost:3000` in your browser - you should see the **Setup** screen (first run) or the **Login** page.
+
+You can also verify via the terminal:
+
+```bash
+curl http://localhost:3000/api/health
+# Expected: {"status":"ok","version":"..."}
+```
+
+After deploying your first MCP server, check its status on the **Server** page - the status badge shows **Running** when the server is active.
+
+## Next Steps
+
+- [Visual Flow Editor](/user-guide/flow-editor) - drag-and-drop canvas for managing your entire configuration
+- [Configuration Reference](/configuration) - all environment variables and server settings
+- [Security Guide](/security) - encryption, authentication, and hardening
+- [API Reference](/api-reference/overview) - complete REST API documentation
+- [Agent MCP](/api-reference/agent-mcp) - AI agent access via MCP protocol
+- [Troubleshooting](/troubleshooting) - common issues and solutions

@@ -1,0 +1,104 @@
+---
+title: "SSL/HTTPS Setup"
+description: "Configure automatic SSL certificates with Let's Encrypt"
+icon: "lock"
+---
+
+SMKRV MCP Studio supports automatic SSL certificate provisioning and HTTPS for both the UI and MCP endpoints.
+
+## Enabling SSL
+
+Navigate to **Server > Settings** and toggle **Enable SSL**. This reveals the SSL configuration panel.
+
+## Domain Configuration
+
+| Field | Description |
+|-------|-------------|
+| UI Domain | Domain for the MCP Studio web interface |
+| MCP Domain | Domain for the MCP server endpoint |
+| ACME Email | Email address for Let's Encrypt certificate issuance |
+
+The UI domain and MCP domain can be the same or separate.
+
+## Certificate Challenges
+
+SSL certificates are obtained from Let's Encrypt via ACME challenges.
+
+### HTTP-01 Challenge
+
+The simplest method. The ACME server verifies domain ownership by making an HTTP request to port 80.
+
+**Requirements:**
+- Port 80 must be accessible from the internet
+- The domain's DNS must point to your server
+- No additional configuration needed
+
+### DNS-01 Challenge
+
+Use DNS-01 when port 80 is not accessible, or for wildcard certificates.
+
+#### Cloudflare DNS
+
+Create a Cloudflare API token with **Zone > DNS > Edit** permission, scoped to your domain.
+
+#### AWS Route53
+
+Provide an IAM access key with `route53:ChangeResourceRecordSets` and `route53:ListHostedZones` permissions.
+
+## MCP Nginx Proxy
+
+Toggle **MCP Nginx Proxy** to route MCP traffic through nginx with SSL termination. When enabled:
+- MCP traffic is served over HTTPS
+- SSL termination happens at nginx (internal traffic is plain HTTP)
+- The MCP endpoint URL changes from `http://` to `https://`
+
+## Certificate Status
+
+The SSL settings panel shows:
+- **Certificate status**: Valid, Pending, or Error
+- **Expiration date**
+- **Issuer**: Let's Encrypt
+- **Domains covered**
+
+## Auto-Renewal
+
+Certificates are automatically renewed before expiration. Let's Encrypt certificates are valid for 90 days, and renewal is attempted 30 days before expiry.
+
+## Troubleshooting
+
+### Certificate Not Issued
+
+- Verify the domain DNS points to your server
+- Ensure port 80 is open (HTTP-01) or DNS credentials are correct (DNS-01)
+- Check that the ACME email is valid
+- Review server logs for ACME challenge errors
+
+### HTTPS Not Working After Enabling SSL
+
+- Wait 1-2 minutes for certificate issuance
+- Check certificate status in the settings panel
+- Verify nginx configuration was reloaded
+
+### Mixed Content Warnings
+
+- Ensure all MCP clients use `https://` URLs after enabling SSL
+- Update any hardcoded `http://` references in client configurations
+
+---
+
+## See Also
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Environment variables including SSL settings
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/user-guide/deployment">
+    Deploy and connect MCP clients over HTTPS
+  </Card>
+  <Card title="Security" icon="shield-halved" href="/security">
+    Authentication, encryption, and container hardening
+  </Card>
+  <Card title="Troubleshooting" icon="bug" href="/troubleshooting">
+    SSL certificate issues and debugging tips
+  </Card>
+</CardGroup>
